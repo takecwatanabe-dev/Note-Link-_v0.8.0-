@@ -1,6 +1,6 @@
 <!doctype html><html lang="ja"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Note Link — v0.8.0 / B-REL6-HF5</title>
+<title>Note Link — v0.8.0 / B-REL6-HF6</title>
 <style>
 :root{--ink:#e6f1ff;--ink-dim:#9bd6e9;--bg:#0b1020;--panel:#101827;--accent:#3f78ff;--ok:#20e3c2;--muted:#2a3550;--shadow:0 10px 24px rgba(0,0,0,.45);--topbar-h:44px;--toolbar-w:56px}
 *{box-sizing:border-box}
@@ -12,6 +12,7 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 #wrap{position:relative;height:100%;padding-top:var(--topbar-h)}
 #stage{position:absolute;inset:0;padding-left:var(--toolbar-w)}
 #viewport{position:absolute;inset:0;transform-origin:0 0;touch-action:none;overscroll-behavior:none}
+
 .sidebar{position:fixed;z-index:1500;left:0;top:var(--topbar-h);bottom:0;width:var(--toolbar-w);display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.86);box-shadow:0 0 0 1px var(--muted) inset}
 .sidebar .rail{width:100%;padding:6px;display:flex;flex-direction:column;gap:8px}
 .tool{display:grid;place-items:center;width:100%;height:36px;border-radius:10px;cursor:pointer;background:rgba(22,26,38,.75);border:1px solid rgba(50,60,100,.6);outline:1px solid rgba(79,124,255,.35);box-shadow:0 0 0 2px rgba(0,0,0,.12)}
@@ -55,7 +56,7 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 </head>
 <body>
 <header class="topbar" id="topbar">
-  <strong id="verText">Note Link v0.8.0 / B-REL6-HF5</strong>
+  <strong id="verText">Note Link v0.8.0 / B-REL6-HF6</strong>
   <span class="sp"></span>
   <button class="btn" id="btnZoomOut">−</button>
   <button class="btn" id="btnZoomReset">100%</button>
@@ -65,7 +66,7 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
   <button class="btn" id="btnPrint">印刷</button>
   <button class="btn" id="btnPng">PNG</button>
   <button class="btn" id="btnShare">共有</button>
-  <span class="build" id="buildText">build: hf5-touch-rtmarker</span>
+  <span class="build" id="buildText">build: hf6-smooth+palm-lock</span>
 </header>
 
 <aside class="sidebar" id="sidebar">
@@ -163,9 +164,9 @@ const cv=$('#paint'), ctx=cv.getContext('2d',{alpha:true});
 const viewport=$('#viewport'), textLayer=$('#textLayer');
 
 /* ==== version ==== */
-const APP_VERSION='v0.8.0', BUILD_ID='B-REL6-HF5';
+const APP_VERSION='v0.8.0', BUILD_ID='B-REL6-HF6';
 document.title=`Note Link — ${APP_VERSION} / ${BUILD_ID}`;
-$('#buildText').textContent='build: hf5-touch-rtmarker';
+$('#buildText').textContent='build: hf6-smooth+palm-lock';
 $('#verText').textContent=`Note Link ${APP_VERSION} / ${BUILD_ID}`;
 
 /* ==== layout ==== */
@@ -307,7 +308,8 @@ addEventListener('keydown',e=>{
 /* ==== drawing core ==== */
 function setCtx(){
   ctx.lineJoin='round';
-  ctx.lineCap=(tool==='marker'||tool==='pen')?cap:'round';
+  // フリーハンド時は常に丸端で滑らかに（直線は設定を反映）
+  ctx.lineCap='round';
   if(tool==='marker'){ ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=hexA(color,alpha); }
   else if(tool==='pen'){ ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=color; }
   else if(tool==='eraser'){ ctx.globalCompositeOperation='destination-out'; ctx.strokeStyle='#000'; }
@@ -330,22 +332,27 @@ function snapLine(p0,p1){
   return {x,y}
 }
 
-/* === palm reject（指/静電スタイラス対応） === */
+/* === palm reject & input lock === */
 let activeTouches=0;
+let activeInput=null; // 'pen' | 'touch' | 'mouse'
 function allowTouchDown(e){
   if(!palmReject) return true;
-  if(e.pointerType!=='touch') return true;  // ペン/マウスは常に許可
-  return activeTouches<1;                    // 1本目だけ許可、2本目以降は拒否
+  if(e.pointerType!=='touch') return true;
+  if(activeInput && activeInput!=='touch') return false; // ペン描画中はタッチ全面無視
+  if(e.isPrimary===false) return false;                  // 非プライマリタッチ無視
+  return activeTouches<1;                                 // 1本目だけ許可
 }
 
 /* drawing handlers */
 let drawing=false, startPt=null, panning=false;
-let lastPt=null;           // ペン/マーカー共用の最後の点
-let markerPath=null;       // マーカー（非タッチ）用プレビューパス
-let markerLive=false;      // ★ タッチ時は都度本描画
+let lastPt=null;
+let markerPath=null;  // 非タッチ・プレビュー用
+let markerLive=false; // タッチは都度本描画
 
 function onDown(e){
-  // 許可判定→カウント
+  // 他入力種別で描画中なら拒否
+  if(activeInput && activeInput!==e.pointerType){ return; }
+
   if(e.pointerType==='touch'){
     if(!allowTouchDown(e)) return;
     activeTouches++;
@@ -370,15 +377,11 @@ function onDown(e){
   const straight=(straightKey || $('#uiStraight').checked);
   startPt=(gridFirst && straight)?snapToGrid(p):p;
   drawing=true;
+  activeInput=e.pointerType;            // ★ 入力ロック
   onDown._undoClip = clipToNote(ctx);
 
-  // マーカー：タッチはライブ描画、その他はプレビュー
   markerLive = (tool==='marker' && e.pointerType==='touch' && !straight);
-  if(tool==='marker'){
-    markerPath = markerLive ? null : [startPt];
-  }else{
-    markerPath = null;
-  }
+  markerPath = (tool==='marker' && !markerLive) ? [startPt] : null;
   lastPt = startPt;
 
   pushHistory();
@@ -390,7 +393,7 @@ function drawMarkerPreview(){
   const undo = clipToNote(ctxGuide);
   ctxGuide.save();
   ctxGuide.lineJoin='round';
-  ctxGuide.lineCap=cap;
+  ctxGuide.lineCap='round'; // ★ プレビューも丸端
   ctxGuide.lineWidth=(size||4)*DPR;
   ctxGuide.globalCompositeOperation='source-over';
   ctxGuide.strokeStyle=hexA(color,alpha);
@@ -403,6 +406,8 @@ function drawMarkerPreview(){
 }
 
 function onMove(e){
+  if(activeInput && activeInput!==e.pointerType) return; // ★ 異種入力は無視
+
   if(tool==='hand' && panning){
     if(typeof e.movementX==='number'){ panX+=e.movementX; panY+=e.movementY; }
     else { if(!onMove._last) onMove._last={x:e.clientX,y:e.clientY}; panX+=e.clientX-onMove._last.x; panY+=e.clientY-onMove._last.y; onMove._last={x:e.clientX,y:e.clientY}; }
@@ -412,18 +417,15 @@ function onMove(e){
 
   const straight=(straightKey || $('#uiStraight').checked);
 
-  // マーカー：タッチはライブ描画
+  // マーカー：タッチはライブ描画（丸端）
   if(tool==='marker' && !straight){
     const list=(e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
     if(markerLive){
-      // 直接本描画（消えない）
-      const prevCap = ctx.lineCap; ctx.lineCap=cap;
       for(const ev of list){
         const p=pt(ev);
         ctx.beginPath(); ctx.moveTo(lastPt.x,lastPt.y); ctx.lineTo(p.x,p.y); ctx.stroke();
         lastPt = p;
       }
-      ctx.lineCap = prevCap;
     }else{
       for(const ev of list){ markerPath.push( pt(ev) ); }
       drawMarkerPreview();
@@ -431,16 +433,14 @@ function onMove(e){
     return;
   }
 
-  // ペンのフリーハンド
+  // ペンのフリーハンド（丸端）
   if(tool==='pen' && !straight){
     const list=(e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
-    const prevCap = ctx.lineCap; ctx.lineCap='round';
     for(const ev of list){
       const p=pt(ev);
       ctx.beginPath(); ctx.moveTo(lastPt.x,lastPt.y); ctx.lineTo(p.x,p.y); ctx.stroke();
       lastPt = p;
     }
-    ctx.lineCap = prevCap;
     return;
   }
 
@@ -449,49 +449,58 @@ function onMove(e){
   ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height);
   const undo = clipToNote(ctxGuide);
   const d=DPR, g=ctxGuide;
-  g.save(); g.lineCap=ctx.lineCap; g.lineWidth=ctx.lineWidth; g.strokeStyle='#7ec8ff';
+  g.save(); g.lineCap='round'; g.lineWidth=ctx.lineWidth; g.strokeStyle='#7ec8ff';
   g.setLineDash([6*d,6*d]); g.beginPath(); g.moveTo(startPt.x,startPt.y); g.lineTo(sp.x,sp.y); g.stroke(); g.restore();
   undo();
 }
 
 function onUp(e){
+  if(activeInput && activeInput!==e.pointerType) return; // 異種は無視
+
   if(tool==='hand' && panning){ panning=false; onMove._last=null; cv.style.cursor='grab'; }
+
   if(!drawing){ ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height); }
   else{
     const straight=(straightKey || $('#uiStraight').checked);
 
     if(tool==='marker' && !straight){
       if(!markerLive){
-        // プレビューしていた場合のみ確定描画
         const undo = clipToNote(ctx);
-        setCtx(); ctx.lineCap=cap; ctx.lineWidth=(size||4)*DPR;
-        ctx.beginPath();
+        setCtx(); ctx.beginPath();
         ctx.moveTo(markerPath[0].x, markerPath[0].y);
         for(let i=1;i<markerPath.length;i++){ ctx.lineTo(markerPath[i].x, markerPath[i].y); }
         ctx.stroke();
         undo();
         ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height);
-      } // markerLive は既に本描画済み
+      }
     }else if(straight){
       const p=pt(e), sp=snapLine(startPt,p);
       const undo = clipToNote(ctx);
-      setCtx(); ctx.beginPath(); ctx.moveTo(startPt.x,startPt.y); ctx.lineTo(sp.x,sp.y); ctx.stroke();
-      undo();
+      // 直線は設定の端形を反映
+      const prevCap=ctx.lineCap; setCtx(); ctx.lineCap = (tool==='marker'||tool==='pen') ? ui.cap.value : 'round';
+      ctx.beginPath(); ctx.moveTo(startPt.x,startPt.y); ctx.lineTo(sp.x,sp.y); ctx.stroke();
+      ctx.lineCap=prevCap; undo();
       ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height);
     }
 
     drawing=false; startPt=null; lastPt=null; markerPath=null; markerLive=false;
+    activeInput=null; // ★ ロック解除
     if(typeof onDown._undoClip==='function'){ onDown._undoClip(); onDown._undoClip=null; }
   }
 
   if(e.pointerType==='touch' && activeTouches>0) activeTouches--;
 }
-
+function cancelAll(){
+  drawing=false; startPt=null; lastPt=null; markerPath=null; markerLive=false; activeInput=null;
+  activeTouches=0;
+  ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height);
+}
 cv.addEventListener('pointerdown',onDown,{passive:false});
 cv.addEventListener('pointermove',onMove,{passive:false});
 cv.addEventListener('pointerrawupdate',onMove,{passive:false});
 cv.addEventListener('pointerup',onUp,{passive:false});
-cv.addEventListener('pointercancel',onUp,{passive:false});
+cv.addEventListener('pointercancel',()=>cancelAll(),{passive:true});
+cv.addEventListener('pointerleave',()=>cancelAll(),{passive:true});
 addEventListener('keydown',e=>{ if(e.key==='Shift') straightKey=true; });
 addEventListener('keyup',e=>{ if(e.key==='Shift') straightKey=false; });
 
