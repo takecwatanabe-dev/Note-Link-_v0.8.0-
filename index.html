@@ -56,8 +56,10 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 </head>
 <body>
 <header class="topbar" id="topbar">
-  <strong id="verText">Note Link v0.8.0 / B-REL6-HF6</strong>
+  <strong id="verText">NOTE LINK V0.8.0 / B-REL6-HF6</strong>
   <span class="sp"></span>
+  <button class="btn" id="btnLoad">読み込み</button>
+  <button class="btn" id="btnSave">保存</button>
   <button class="btn" id="btnZoomOut">−</button>
   <button class="btn" id="btnZoomReset">100%</button>
   <button class="btn" id="btnZoomIn">＋</button>
@@ -66,7 +68,8 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
   <button class="btn" id="btnPrint">印刷</button>
   <button class="btn" id="btnPng">PNG</button>
   <button class="btn" id="btnShare">共有</button>
-  <span class="build" id="buildText">build: hf6-smooth+palm-lock</span>
+  <span class="build" id="buildText">build: hf6-touch-smooth+palm+save</span>
+  <input type="file" id="fileOpen" accept="application/json" style="display:none">
 </header>
 
 <aside class="sidebar" id="sidebar">
@@ -152,7 +155,7 @@ const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll
 const DPR=Math.max(1,self.devicePixelRatio||1);
 const Q=new URLSearchParams(location.search);
 let DBG=Q.has('debug');
-function logln(s){ if(!DBG) return; const t=$('#log'); t.value+=(s+"\\n"); t.scrollTop=t.scrollHeight; console.log(s); }
+function logln(s){ if(!DBG) return; const t=$('#log'); t.value+=(s+"\n"); t.scrollTop=t.scrollHeight; console.log(s); }
 (function(){ const chip=$('#dbgChip'); if(DBG){ chip.style.display='block'; $('#diag').style.display='block'; } chip.onclick=()=>{ const d=$('#diag'); d.style.display=(d.style.display==='block'?'none':'block'); }; addEventListener('keydown',e=>{ if(e.altKey&&(e.key==='d'||e.key==='D')) chip.click();}); })();
 function envLine(){const pe='onpointerdown'in window,ts='ontouchstart'in window,mt=(navigator.maxTouchPoints||0),dpr=(self.devicePixelRatio||1);return `env: PE=${pe} TS=${ts} mt=${mt} dpr=${dpr} ua=${navigator.userAgent}`;}
 
@@ -162,12 +165,13 @@ const cvGrid=$('#grid'), ctxGrid=cvGrid.getContext('2d');
 const cvGuide=$('#guide'), ctxGuide=cvGuide.getContext('2d');
 const cv=$('#paint'), ctx=cv.getContext('2d',{alpha:true});
 const viewport=$('#viewport'), textLayer=$('#textLayer');
+const fileOpen=$('#fileOpen');
 
 /* ==== version ==== */
 const APP_VERSION='v0.8.0', BUILD_ID='B-REL6-HF6';
 document.title=`Note Link — ${APP_VERSION} / ${BUILD_ID}`;
-$('#buildText').textContent='build: hf6-smooth+palm-lock';
-$('#verText').textContent=`Note Link ${APP_VERSION} / ${BUILD_ID}`;
+$('#buildText').textContent='build: hf6-touch-smooth+palm+save';
+$('#verText').textContent=`NOTE LINK ${APP_VERSION} / ${BUILD_ID}`;
 
 /* ==== layout ==== */
 function applyBars(){ const h=Math.round(document.querySelector('#topbar').getBoundingClientRect().height)||44; document.documentElement.style.setProperty('--topbar-h',h+'px');}
@@ -291,8 +295,9 @@ function drawGrid(){
 
 /* ==== history (Undo/Redo) ==== */
 const hist=[], redoStack=[];
-function snapshot(){ return { url: cv.toDataURL(), texts: textLayer.innerHTML }; }
-async function restore(snap){ clear(cv); textLayer.innerHTML = snap?.texts || ''; if(!snap?.url) return;
+function snapshot(){ return { url: cv.toDataURL(), texts: textLayer.innerHTML, gridOn, gridStepMM, gridColor }; }
+async function restore(snap){ clear(cv); textLayer.innerHTML = snap?.texts || ''; gridOn=!!snap?.gridOn; gridStepMM=snap?.gridStepMM||10; gridColor=snap?.gridColor||'#3a4f7a'; syncUI(); drawGrid();
+  if(!snap?.url) return;
   await new Promise(res=>{ const img=new Image(); img.onload=()=>{ ctx.drawImage(img,0,0); res(); }; img.src=snap.url; });
 }
 function pushHistory(){ hist.push(snapshot()); if(hist.length>30) hist.shift(); redoStack.length=0; }
@@ -305,11 +310,42 @@ addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey) && (e.shiftKey && (e.key==='z'||e.key==='Z') || e.key==='y'||e.key==='Y')){ e.preventDefault(); redo(); }
 });
 
+/* ==== 保存 / 読み込み ==== */
+function exportNote(){
+  return {
+    ver: BUILD_ID,
+    created: new Date().toISOString(),
+    gridOn, gridStepMM, gridColor,
+    image: cv.toDataURL('image/png'),
+    texts: textLayer.innerHTML
+  };
+}
+function saveJSON(data){
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  const a=document.createElement('a');
+  const ts=new Date(); const pad=n=>String(n).padStart(2,'0');
+  const name=`note-link-${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.json`;
+  a.href=URL.createObjectURL(blob); a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),800);
+}
+async function loadJSON(obj){
+  // 描画とテキストを復元
+  await restore({ url: obj.image, texts: obj.texts, gridOn: obj.gridOn, gridStepMM: obj.gridStepMM, gridColor: obj.gridColor });
+  // 履歴を初期化して現在状態を基準に
+  hist.length=0; redoStack.length=0; pushHistory();
+}
+$('#btnSave').addEventListener('click',()=>saveJSON(exportNote()));
+$('#btnLoad').addEventListener('click',()=>fileOpen.click());
+fileOpen.addEventListener('change',()=>{
+  const f=fileOpen.files&&fileOpen.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=async ()=>{ try{ const obj=JSON.parse(r.result); await loadJSON(obj);}catch(e){ alert('読み込みに失敗しました: '+e.message); } };
+  r.readAsText(f);
+});
+
 /* ==== drawing core ==== */
 function setCtx(){
   ctx.lineJoin='round';
-  // フリーハンド時は常に丸端で滑らかに（直線は設定を反映）
-  ctx.lineCap='round';
+  ctx.lineCap=(tool==='marker'||tool==='pen')?cap:'round';
   if(tool==='marker'){ ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=hexA(color,alpha); }
   else if(tool==='pen'){ ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=color; }
   else if(tool==='eraser'){ ctx.globalCompositeOperation='destination-out'; ctx.strokeStyle='#000'; }
@@ -332,29 +368,44 @@ function snapLine(p0,p1){
   return {x,y}
 }
 
-/* === palm reject & input lock === */
+/* === palm reject（スタイラス優先＋デバウンス） === */
 let activeTouches=0;
-let activeInput=null; // 'pen' | 'touch' | 'mouse'
-function allowTouchDown(e){
+let penActive=false, penDownTs=0;
+const TOUCH_DEBOUNCE_MS=60;
+function allowTouchDown(){
   if(!palmReject) return true;
-  if(e.pointerType!=='touch') return true;
-  if(activeInput && activeInput!=='touch') return false; // ペン描画中はタッチ全面無視
-  if(e.isPrimary===false) return false;                  // 非プライマリタッチ無視
-  return activeTouches<1;                                 // 1本目だけ許可
+  if(penActive) return false; // ペン中はタッチ全拒否
+  if(performance.now()-penDownTs<TOUCH_DEBOUNCE_MS) return false;
+  return activeTouches<1; // 1本目のみ許可
+}
+
+/* ==== スムージング（指/静電スタイラス向け） ==== */
+function smoothDrawSegment(ctx, from, to, forceRoundCap=true){
+  const dx=to.x-from.x, dy=to.y-from.y;
+  const dist=Math.hypot(dx,dy);
+  const minStep=Math.max(1, (ctx.lineWidth||2)); // 太いほど密に
+  const steps=Math.max(1, Math.ceil(dist/minStep));
+  const prevCap=ctx.lineCap; if(forceRoundCap) ctx.lineCap='round';
+  for(let i=1;i<=steps;i++){
+    const t=i/steps;
+    const x=from.x+dx*t, y=from.y+dy*t;
+    ctx.beginPath(); ctx.moveTo(from.x,from.y); ctx.lineTo(x,y); ctx.stroke();
+    from={x,y};
+  }
+  ctx.lineCap=prevCap;
+  return from;
 }
 
 /* drawing handlers */
 let drawing=false, startPt=null, panning=false;
-let lastPt=null;
-let markerPath=null;  // 非タッチ・プレビュー用
-let markerLive=false; // タッチは都度本描画
-
+let lastPt=null;           // 連続描画の最後の点
+let markerPath=null;       // 非ライブ時のプレビュー
+let markerLive=false;      // タッチ時はライブ描画
 function onDown(e){
-  // 他入力種別で描画中なら拒否
-  if(activeInput && activeInput!==e.pointerType){ return; }
-
+  // ペン/タッチの優先制御
+  if(e.pointerType==='pen'){ penActive=true; penDownTs=performance.now(); }
   if(e.pointerType==='touch'){
-    if(!allowTouchDown(e)) return;
+    if(!allowTouchDown()) return;
     activeTouches++;
   }
 
@@ -377,23 +428,25 @@ function onDown(e){
   const straight=(straightKey || $('#uiStraight').checked);
   startPt=(gridFirst && straight)?snapToGrid(p):p;
   drawing=true;
-  activeInput=e.pointerType;            // ★ 入力ロック
+
   onDown._undoClip = clipToNote(ctx);
 
+  // マーカー：タッチはライブ、それ以外はプレビュー
   markerLive = (tool==='marker' && e.pointerType==='touch' && !straight);
-  markerPath = (tool==='marker' && !markerLive) ? [startPt] : null;
+  if(tool==='marker'){ markerPath = markerLive ? null : [startPt]; }
+  else { markerPath=null; }
+
   lastPt = startPt;
 
   pushHistory();
 }
-
 function drawMarkerPreview(){
   if(!markerPath || markerPath.length<2) return;
   ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height);
   const undo = clipToNote(ctxGuide);
   ctxGuide.save();
   ctxGuide.lineJoin='round';
-  ctxGuide.lineCap='round'; // ★ プレビューも丸端
+  ctxGuide.lineCap=cap;
   ctxGuide.lineWidth=(size||4)*DPR;
   ctxGuide.globalCompositeOperation='source-over';
   ctxGuide.strokeStyle=hexA(color,alpha);
@@ -404,10 +457,7 @@ function drawMarkerPreview(){
   ctxGuide.restore();
   undo();
 }
-
 function onMove(e){
-  if(activeInput && activeInput!==e.pointerType) return; // ★ 異種入力は無視
-
   if(tool==='hand' && panning){
     if(typeof e.movementX==='number'){ panX+=e.movementX; panY+=e.movementY; }
     else { if(!onMove._last) onMove._last={x:e.clientX,y:e.clientY}; panX+=e.clientX-onMove._last.x; panY+=e.clientY-onMove._last.y; onMove._last={x:e.clientX,y:e.clientY}; }
@@ -417,15 +467,17 @@ function onMove(e){
 
   const straight=(straightKey || $('#uiStraight').checked);
 
-  // マーカー：タッチはライブ描画（丸端）
+  // マーカー：タッチはライブ描画（消えない）＋スムージング
   if(tool==='marker' && !straight){
     const list=(e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
     if(markerLive){
+      const undo = clipToNote(ctx);
+      setCtx(); ctx.lineCap=cap; // cap指定は維持
       for(const ev of list){
         const p=pt(ev);
-        ctx.beginPath(); ctx.moveTo(lastPt.x,lastPt.y); ctx.lineTo(p.x,p.y); ctx.stroke();
-        lastPt = p;
+        lastPt = smoothDrawSegment(ctx, lastPt, p, true);
       }
+      undo();
     }else{
       for(const ev of list){ markerPath.push( pt(ev) ); }
       drawMarkerPreview();
@@ -433,14 +485,16 @@ function onMove(e){
     return;
   }
 
-  // ペンのフリーハンド（丸端）
+  // ペンのフリーハンド（指も含む）：スムージング
   if(tool==='pen' && !straight){
     const list=(e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
+    const undo = clipToNote(ctx);
+    setCtx();
     for(const ev of list){
       const p=pt(ev);
-      ctx.beginPath(); ctx.moveTo(lastPt.x,lastPt.y); ctx.lineTo(p.x,p.y); ctx.stroke();
-      lastPt = p;
+      lastPt = smoothDrawSegment(ctx, lastPt, p, true);
     }
+    undo();
     return;
   }
 
@@ -449,24 +503,22 @@ function onMove(e){
   ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height);
   const undo = clipToNote(ctxGuide);
   const d=DPR, g=ctxGuide;
-  g.save(); g.lineCap='round'; g.lineWidth=ctx.lineWidth; g.strokeStyle='#7ec8ff';
+  g.save(); g.lineCap=ctx.lineCap; g.lineWidth=ctx.lineWidth; g.strokeStyle='#7ec8ff';
   g.setLineDash([6*d,6*d]); g.beginPath(); g.moveTo(startPt.x,startPt.y); g.lineTo(sp.x,sp.y); g.stroke(); g.restore();
   undo();
 }
-
 function onUp(e){
-  if(activeInput && activeInput!==e.pointerType) return; // 異種は無視
-
   if(tool==='hand' && panning){ panning=false; onMove._last=null; cv.style.cursor='grab'; }
-
   if(!drawing){ ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height); }
   else{
     const straight=(straightKey || $('#uiStraight').checked);
 
     if(tool==='marker' && !straight){
       if(!markerLive){
+        // プレビュー→本描画へ確定
         const undo = clipToNote(ctx);
-        setCtx(); ctx.beginPath();
+        setCtx(); ctx.lineCap=cap; ctx.lineWidth=(size||4)*DPR;
+        ctx.beginPath();
         ctx.moveTo(markerPath[0].x, markerPath[0].y);
         for(let i=1;i<markerPath.length;i++){ ctx.lineTo(markerPath[i].x, markerPath[i].y); }
         ctx.stroke();
@@ -476,31 +528,25 @@ function onUp(e){
     }else if(straight){
       const p=pt(e), sp=snapLine(startPt,p);
       const undo = clipToNote(ctx);
-      // 直線は設定の端形を反映
-      const prevCap=ctx.lineCap; setCtx(); ctx.lineCap = (tool==='marker'||tool==='pen') ? ui.cap.value : 'round';
-      ctx.beginPath(); ctx.moveTo(startPt.x,startPt.y); ctx.lineTo(sp.x,sp.y); ctx.stroke();
-      ctx.lineCap=prevCap; undo();
+      setCtx(); ctx.beginPath(); ctx.moveTo(startPt.x,startPt.y); ctx.lineTo(sp.x,sp.y); ctx.stroke();
+      undo();
       ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height);
     }
 
     drawing=false; startPt=null; lastPt=null; markerPath=null; markerLive=false;
-    activeInput=null; // ★ ロック解除
     if(typeof onDown._undoClip==='function'){ onDown._undoClip(); onDown._undoClip=null; }
   }
 
+  // カウンタ／フラグ
   if(e.pointerType==='touch' && activeTouches>0) activeTouches--;
+  if(e.pointerType==='pen'){ penActive=false; }
 }
-function cancelAll(){
-  drawing=false; startPt=null; lastPt=null; markerPath=null; markerLive=false; activeInput=null;
-  activeTouches=0;
-  ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height);
-}
+
 cv.addEventListener('pointerdown',onDown,{passive:false});
 cv.addEventListener('pointermove',onMove,{passive:false});
 cv.addEventListener('pointerrawupdate',onMove,{passive:false});
 cv.addEventListener('pointerup',onUp,{passive:false});
-cv.addEventListener('pointercancel',()=>cancelAll(),{passive:true});
-cv.addEventListener('pointerleave',()=>cancelAll(),{passive:true});
+cv.addEventListener('pointercancel',onUp,{passive:false});
 addEventListener('keydown',e=>{ if(e.key==='Shift') straightKey=true; });
 addEventListener('keyup',e=>{ if(e.key==='Shift') straightKey=false; });
 
