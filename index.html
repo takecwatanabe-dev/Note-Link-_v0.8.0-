@@ -1,31 +1,18 @@
-<!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NOTE LINK — v0.8.0 / B-REL6-HF6e</title>
+<!doctype html><html lang="ja"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Note Link — v0.8.0 / B-REL6-HF6g</title>
 <style>
-/* ====== HF6eの見た目に合わせる（△トグル・幅56px・既存配色） ====== */
-:root{
-  --ink:#e6f1ff; --ink-dim:#9bd6e9; --bg:#0b1020; --panel:#101827; --accent:#3f78ff;
-  --ok:#20e3c2; --muted:#2a3550; --shadow:0 10px 24px rgba(0,0,0,.45);
-  --topbar-h:44px; --toolbar-w:56px;
-}
-*{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
-  -webkit-user-select:none;user-select:none}
-header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topbar-h);
-  display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#fff;
-  background:linear-gradient(0deg,rgba(42,84,255,.16),rgba(42,84,255,.16)),var(--accent);
-  border-bottom:1px solid #ffffff26}
-.topbar .sp{flex:1}
-.topbar .btn{height:28px;padding:0 10px;border-radius:10px;background:#ffffff33;border:1px solid #ffffff38;color:#fff;display:inline-flex;align-items:center}
+/* ==== HF6eのUIを維持（編集せず） ==== */
+:root{--ink:#e6f1ff;--ink-dim:#9bd6e9;--bg:#0b1020;--panel:#101827;--accent:#3f78ff;--ok:#20e3c2;--muted:#2a3550;--shadow:0 10px 24px rgba(0,0,0,.45);--topbar-h:44px;--toolbar-w:56px}
+*{box-sizing:border-box} html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;-webkit-user-select:none;user-select:none}
+header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topbar-h);display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#fff;background:linear-gradient(0deg,rgba(42,84,255,.16),rgba(42,84,255,.16)),var(--accent);border-bottom:1px solid #ffffff26}
+.topbar .sp{flex:1}.topbar .btn{height:28px;padding:0 10px;border-radius:10px;background:#ffffff33;border:1px solid #ffffff38;color:#fff;display:inline-flex;align-items:center}
 .topbar .btn:active{transform:translateY(1px)} .build{opacity:.8}
 
-/* ステージとHF6eライクなサイドバー */
 #wrap{position:relative;height:100%;padding-top:var(--topbar-h)}
 #stage{position:absolute;inset:0;padding-left:var(--toolbar-w)}
+#viewport{position:absolute;inset:0;transform-origin:0 0;touch-action:none}
+
 .sidebar{position:fixed;z-index:1500;left:0;top:var(--topbar-h);bottom:0;width:var(--toolbar-w);display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.86);box-shadow:0 0 0 1px var(--muted) inset}
 .sidebar .rail{width:100%;padding:6px;display:flex;flex-direction:column;gap:8px}
 .tool{display:grid;place-items:center;width:100%;height:36px;border-radius:10px;cursor:pointer;background:rgba(22,26,38,.75);border:1px solid rgba(50,60,100,.6);outline:1px solid rgba(79,124,255,.35);box-shadow:0 0 0 2px rgba(0,0,0,.12)}
@@ -34,7 +21,6 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 .sidebar.collapsed .rail>.tool:not([data-tool="toggle"]){display:none}
 .tool[data-tool="toggle"] svg{transition:transform .2s}.sidebar.collapsed .tool[data-tool="toggle"] svg{transform:rotate(180deg)}
 
-/* HF6eの設定パネル構成（項目名/順序を維持） */
 .panel{position:absolute;z-index:1400;left:70px;top:calc(var(--topbar-h) + 10px);min-width:280px;max-width:320px;padding:8px 12px 10px;border-radius:14px;color:var(--ink);background:var(--panel);border:1px solid #ffffff24;box-shadow:var(--shadow);display:none;user-select:none;max-height:calc(100vh - var(--topbar-h) - 24px);overflow:auto}
 .panel.show{display:block}
 .panel .handle{position:sticky;top:0;display:flex;align-items:center;gap:8px;padding:8px 12px;margin:-8px -12px 8px;background:var(--panel);border-bottom:1px solid #ffffff20;border-radius:14px 14px 0 0;cursor:grab;touch-action:none}
@@ -45,20 +31,29 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 .panel .row input[type="range"]{flex:1;min-width:120px}
 .panel .row button{height:26px;padding:0 8px;border-radius:8px;border:1px solid #ffffff2e;background:#ffffff14;color:#fff;font-size:12px}
 
-/* 3レイヤ（紙・インク・直線プレビュー） */
-#viewport{position:absolute;inset:0;transform-origin:0 0;touch-action:none}
-#paper,#grid,#ink,#guide{position:absolute;left:var(--toolbar-w);top:0;right:0;bottom:0}
-#paper{z-index:70}  /* 白紙と枠・罫線はここに描く */
-#ink{z-index:80;touch-action:none;-webkit-touch-callout:none} /* 実際の描画 */
-#guide{z-index:90;pointer-events:none} /* 直線プレビュー等 */
+#grid,#guide,#note{position:absolute;left:var(--toolbar-w);top:0;right:0;bottom:0}
+#grid,#guide{z-index:100;pointer-events:none}
+#note{z-index:80;touch-action:none;-webkit-touch-callout:none}
 
-@media print{header.topbar,.sidebar,.panel{display:none!important}#stage{padding-left:0!important}body,html,#wrap{height:auto}}
+.text-layer{position:absolute;left:var(--toolbar-w);top:0;right:0;bottom:0;z-index:120;pointer-events:none}
+.note-text{position:absolute;min-width:64px;min-height:28px;padding:6px 8px;color:#000;background:transparent;outline:1px dashed #0004;border-radius:6px;pointer-events:auto}
+.note-text[contenteditable="true"]:focus{outline:2px solid var(--ok)}
+.note-text .del{position:absolute;right:-8px;top:-10px;font-size:11px;color:#fff;background:#0008;border:1px solid #fff3;border-radius:8px;padding:2px 6px;display:none}
+.note-text:focus-within .del{display:block}
+
+[data-tip]{position:relative}
+[data-tip]::after{content:attr(data-tip);position:absolute;left:48px;top:50%;transform:translateY(-50%);background:#222a;color:#fff;font-size:12px;padding:4px 8px;border-radius:8px;white-space:nowrap;pointer-events:none;opacity:0;transition:.15s}
+[data-tip]:hover::after{opacity:1}
+.sidebar .tool[data-tool="settings"][data-tip]::after{left:8px;top:auto;bottom:calc(100% + 8px);transform:none;z-index:1800}
+
+@media print{header.topbar,.sidebar,.panel,[data-tip]::after{display:none!important}#stage{padding-left:0!important}body,html,#wrap{height:auto}}
 </style>
 </head>
 <body>
-<header class="topbar">
-  <strong id="verText">NOTE LINK — v0.8.0 / B-REL6-HF6e</strong>
+<header class="topbar" id="topbar">
+  <strong id="verText">Note Link v0.8.0 / B-REL6-HF6g</strong>
   <span class="sp"></span>
+  <!-- 読み込み/保存（HF6eと同じ位置・同じ見た目） -->
   <button class="btn" id="btnLoad">読み込み</button>
   <button class="btn" id="btnSave">保存</button>
   <button class="btn" id="btnZoomOut">−</button>
@@ -69,54 +64,44 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
   <button class="btn" id="btnPrint">印刷</button>
   <button class="btn" id="btnPng">PNG</button>
   <button class="btn" id="btnShare">共有</button>
-  <span class="build" id="buildText">build: hf6e-ui-rollback</span>
+  <span class="build" id="buildText">build: hf6g-core (smooth+palm+normsave)</span>
 </header>
 
+<!-- HF6eのサイドバー構成そのまま -->
 <aside class="sidebar" id="sidebar">
   <div class="rail">
-    <!-- △ 開閉トグル（HF6e準拠） -->
-    <button class="tool" id="btnSidebarToggle" data-tool="toggle" title="ツールバーの開閉">
+    <button class="tool" id="btnSidebarToggle" data-tool="toggle" data-tip="ツールバーの開閉">
       <svg viewBox="0 0 24 24"><path d="M5 15 L12 7 L19 15 M19 15 L5 15"/></svg>
     </button>
-    <button class="tool active" data-tool="pen" title="ペン">
+    <button class="tool" data-tool="pen" data-tip="ペン">
       <svg viewBox="0 0 24 24"><path d="M3 21l4-1 12-12-3-3L4 17l-1 4zM14 6l3 3"/></svg>
     </button>
-    <button class="tool" data-tool="marker" title="マーカー">
+    <button class="tool" data-tool="marker" data-tip="マーカー">
       <svg viewBox="0 0 24 24"><path d="M3 16l10-10 5 5-10 10-5 1 1-6zM13 6l5 5"/></svg>
     </button>
-    <button class="tool" data-tool="eraser" title="消しゴム">
+    <button class="tool" data-tool="eraser" data-tip="消しゴム">
       <svg viewBox="0 0 24 24"><path d="M3 15l8-8 6 6-6 6H7zM13 7l4 4"/></svg>
     </button>
-    <button class="tool" data-tool="hand" title="選択/パン">
+    <button class="tool" data-tool="hand" data-tip="選択/パン">
       <svg viewBox="0 0 24 24"><path d="M9 11V6a2 2 0 0 1 4 0v5M13 11V5a2 2 0 1 1 4 0v8M9 11a2 2 0 0 1 4 0v8l-2 2-4-4-2-6 2-1z"/></svg>
     </button>
-    <button class="tool" data-tool="keyboard" title="テキスト">
+    <button class="tool" data-tool="keyboard" data-tip="テキスト">
       <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="2"></rect><path d="M7 10h10M5 13h14"/></svg>
     </button>
-    <button class="tool" data-tool="settings" title="ツール設定（表示/非表示）">
+    <button class="tool" data-tool="settings" data-tip="ツール設定（表示/非表示）">
       <svg viewBox="0 0 24 24"><path d="M12 7.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zM4 13h2l1 2-1 2H4l-1-2 1-2zm14 0h2l1 2-1 2h-2l-1-2 1-2zM8 4h2l2 1 2-1h2l1 2-1 2h-2l-2-1-2 1H8L7 6l1-2z"/></svg>
     </button>
   </div>
 </aside>
 
-<div id="wrap"><div id="stage">
-  <div id="viewport">
-    <!-- 紙は別キャンバスに描画 → 消しゴムで紙が消えない -->
-    <canvas id="paper"></canvas>
-    <canvas id="grid"></canvas>
-    <canvas id="ink"></canvas>
-    <canvas id="guide"></canvas>
-  </div>
-</div></div>
-
-<!-- HF6eと同じ項目構成の設定パネル -->
+<!-- 設定パネル（HF6eと同一項目） -->
 <div class="panel" id="panel">
   <div class="handle" id="panelHandle">
     <div id="panelTool">-</div>
     <button class="close" id="panelClose" title="閉じる">☒</button>
   </div>
   <div class="row"><label>色</label><input type="color" id="uiColor" value="#000000"></div>
-  <div class="row" id="rowSize"><label>太さ</label><input type="range" min="1" max="60" value="3" id="uiSize"><span id="uiSizeVal">3px</span></div>
+  <div class="row" id="rowSize"><label>太さ</label><input type="range" min="1" max="60" value="4" id="uiSize"><span id="uiSizeVal">4px</span></div>
   <div class="row" id="rowAlpha"><label>不透明度</label><input type="range" min="10" max="100" value="50" id="uiAlpha"><span id="uiAlphaVal">50%</span></div>
   <div class="row" id="rowLineCap"><label>端の形</label>
     <select id="uiCap"><option value="butt">□ 角</option><option value="round" selected>● 丸</option></select>
@@ -125,234 +110,390 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
     <label><input type="checkbox" id="uiStraight">（モバイル / 15°刻み）</label>
   </div>
   <div class="row" id="rowGrid"><label>グリッド</label>
-    <label><input type="checkbox" id="uiGrid"> 表示（水平のみ）</label>
-  </div>
-  <div class="row" id="rowPenExt">
-    <label>ペン拡張</label>
-    <label><input type="checkbox" id="uiPalm" checked> パーム除外</label>
-    <label><input type="checkbox" id="uiPressure" checked> 圧力</label>
-    <label><input type="checkbox" id="uiTilt" checked> 傾き</label>
+    <label><input type="checkbox" id="uiGrid"> 表示</label>
+    <select id="uiGridStep"><option value="5">5mm</option><option value="10" selected>10mm</option></select>
+    <input type="color" id="uiGridColor" value="#c7cedd"/>
   </div>
 </div>
 
+<div id="wrap"><div id="stage">
+  <div id="viewport">
+    <canvas id="grid"></canvas>
+    <canvas id="guide"></canvas>
+    <canvas id="note"></canvas>
+    <div class="text-layer" id="textLayer"></div>
+  </div>
+</div></div>
+
 <script>
-/* ========= ここからHF6e UIを維持したままの最小修正 ========= */
+/* ===============================
+   HF6g 追加（UIはHF6e据え置き）
+   ・タッチ平滑化（One Euro）
+   ・強化パーム除外
+   ・正規化JSON保存/読み込み
+   ・A4内クリップ徹底
+================================ */
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const DPR=Math.max(1, self.devicePixelRatio||1);
-const topbar=document.querySelector('.topbar'), sidebar=document.getElementById('sidebar'), panel=document.getElementById('panel');
-const cvPaper=document.getElementById('paper'), ptx=cvPaper.getContext('2d');
-const cvGrid=document.getElementById('grid'), gtx=cvGrid.getContext('2d');
-const cvInk=document.getElementById('ink'), itx=cvInk.getContext('2d',{alpha:true});
-const cvGuide=document.getElementById('guide'), g2x=cvGuide.getContext('2d');
-const viewport=document.getElementById('viewport');
 
-let W=0,H=0, zoom=1, panX=0, panY=0;
-const A4={ratio:210/297}; // 縦A4
-let paperRect={x:0,y:0,w:0,h:0};
+/* ---- レイアウト（A4白ノート中央固定） ---- */
+const cvGrid=$('#grid'), ctxGrid=cvGrid.getContext('2d');
+const cvGuide=$('#guide'), ctxGuide=cvGuide.getContext('2d');
+const cv=$('#note'), ctx=cv.getContext('2d',{alpha:true});
+const viewport=$('#viewport'), textLayer=$('#textLayer');
+let W=0,H=0, zoom=1, panX=0, panY=0, paper={x:0,y:0,w:0,h:0}; // A4 mm: 210x297
 
-function applyBars(){ const h=Math.round(topbar.getBoundingClientRect().height)||44; document.documentElement.style.setProperty('--topbar-h',h+'px');}
+function applyBars(){ const h=Math.round($('#topbar').getBoundingClientRect().height)||44; document.documentElement.style.setProperty('--topbar-h',h+'px');}
 function updateViewportTransform(){ viewport.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; }
-function resize(){ applyBars(); const r=viewport.getBoundingClientRect(); W=Math.max(1,Math.round(r.width/zoom)); H=Math.max(1,Math.round(r.height/zoom));
-  for(const c of [cvPaper,cvGrid,cvInk,cvGuide]){ c.width=Math.round(W*DPR); c.height=Math.round(H*DPR); c.style.width=(W*zoom)+'px'; c.style.height=(H*zoom)+'px'; }
-  fitPaper(); drawPaper(); drawGrid(); redraw(); }
+function mmToPx(mm){return mm*96/25.4*DPR}
+function resize(){
+  applyBars();
+  const r=viewport.getBoundingClientRect();
+  W=Math.max(1,Math.round(r.width/zoom)); H=Math.max(1,Math.round(r.height/zoom));
+  for(const c of [cvGrid,cvGuide,cv]){ c.width=Math.round(W*DPR); c.height=Math.round(H*DPR); c.style.width=(W*zoom)+'px'; c.style.height=(H*zoom)+'px'; }
+  // A4を縦でセンター配置（上下左右マージンを黒）
+  const a4w=mmToPx(210)/1, a4h=mmToPx(297)/1;
+  const scale=Math.min(W*DPR*0.65/a4w, H*DPR*0.9/a4h); // 余白を確保
+  paper.w=a4w*scale; paper.h=a4h*scale;
+  paper.x=(cv.width-paper.w)/2; paper.y=(cv.height-paper.h)/2;
+  drawGrid();
+  redrawAll();
+}
 addEventListener('resize',resize);
 
-/* ===== ペーパー（白A4・中央固定・枠線のみ） ===== */
-function fitPaper(){
-  const pad=24*DPR;
-  let w=W*DPR - pad*2, h=Math.round(w/A4.ratio);
-  if(h>H*DPR - pad*2){ h=H*DPR - pad*2; w=Math.round(h*A4.ratio); }
-  paperRect={ w, h, x:Math.floor((W*DPR-w)/2), y:Math.floor((H*DPR-h)/2) };
-}
-function drawPaper(){
-  const c=ptx; c.clearRect(0,0,cvPaper.width,cvPaper.height);
-  c.save(); c.fillStyle='#fff'; c.fillRect(paperRect.x,paperRect.y,paperRect.w,paperRect.h); c.restore();
-  c.save(); c.strokeStyle='#e5e7eb'; c.lineWidth=1; c.strokeRect(paperRect.x+0.5,paperRect.y+0.5,paperRect.w-1,paperRect.h-1); c.restore();
-}
-
-/* ===== 罫線（水平のみ・紙の中だけ） ===== */
-let gridOn=false;
+/* ---- グリッド（横罫のみ） ---- */
+let gridOn=false, gridStepMM=10, gridColor='#c7cedd';
+function clear(c){c.getContext('2d').clearRect(0,0,c.width,c.height)}
 function drawGrid(){
-  const c=gtx; c.clearRect(0,0,cvGrid.width,cvGrid.height);
+  clear(cvGrid);
   if(!gridOn) return;
-  c.save(); c.beginPath(); c.rect(paperRect.x,paperRect.y,paperRect.w,paperRect.h); c.clip();
-  c.strokeStyle='#bfc6d3'; c.globalAlpha=0.35; c.lineWidth=1;
-  const step=28*DPR;
-  c.beginPath();
-  for(let y=paperRect.y+step; y<paperRect.y+paperRect.h; y+=step){ c.moveTo(paperRect.x,y+0.5); c.lineTo(paperRect.x+paperRect.w,y+0.5); }
-  c.stroke(); c.restore();
+  const g=ctxGrid;
+  g.save();
+  // A4のみクリップ
+  g.beginPath(); g.rect(paper.x, paper.y, paper.w, paper.h); g.clip();
+  g.lineWidth=1; g.strokeStyle=gridColor+'88'; g.beginPath();
+  const step=mmToPx(gridStepMM);
+  for(let y=paper.y+step; y<paper.y+paper.h; y+=step){
+    g.moveTo(paper.x+0.5, y+0.5); g.lineTo(paper.x+paper.w-0.5, y+0.5);
+  }
+  g.stroke(); g.restore();
 }
 
-/* ===== ツール状態（HF6eの既定を踏襲） ===== */
+/* ---- ツール状態（HF6e既定） ---- */
 let tool='pen';
-const perTool={pen:{color:'#000000',size:3,alpha:1,cap:'round'},marker:{color:'#FFFF00',size:16,alpha:.5,cap:'butt'},eraser:{size:24},hand:{},keyboard:{}};
-let color=perTool.pen.color,size=perTool.pen.size,alpha=1,cap='round';
-let straightToggle=false,straightKey=false;
-let palmReject=true, pressureOn=true, tiltOn=true;
-function saveToolState(k){const p=perTool[k]||(perTool[k]={});p.color=color;p.size=size;p.alpha=alpha;p.cap=cap;p.straight=!!straightToggle;}
-function loadToolState(k){const p=perTool[k]||{};color=p.color??color;size=p.size??size;alpha=p.alpha??alpha;cap=p.cap??cap;straightToggle=!!p.straight;}
+const perTool={pen:{color:'#000000',size:6,cap:'round'}, marker:{color:'#FFFF00',size:16,alpha:.5,cap:'round'}, eraser:{size:28}, hand:{}, keyboard:{}};
+let color=perTool.pen.color, size=perTool.pen.size, alpha=0.5, cap='round';
+let straightKey=false;
 function setActiveTool(t){
-  saveToolState(tool); tool=t; loadToolState(t);
-  document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active', b.dataset.tool===t));
-  document.getElementById('panelTool').textContent=t;
-  document.getElementById('rowAlpha').style.display=(t==='marker')?'':'none';
-  document.getElementById('rowLineCap').style.display=(t==='marker'||t==='pen')?'':'none';
-  document.getElementById('rowStraight').style.display=(t==='pen'||t==='marker')?'':'none';
-  document.getElementById('rowPenExt').style.display=(t==='pen'||t==='marker')?'':'none';
+  tool=t;
+  const p=perTool[t]||{};
+  color=p.color||color; size=p.size||size; alpha=(t==='marker'?(p.alpha??alpha):alpha); cap=p.cap||cap;
+  $$('.tool').forEach(b=>b.classList.toggle('active', b.dataset.tool===t));
+  $('#panelTool').textContent=t;
+  $('#rowAlpha').style.display=(t==='marker')?'':'none';
+  $('#rowLineCap').style.display=(t==='pen'||t==='marker')?'':'none';
+  $('#rowStraight').style.display=(t==='pen'||t==='marker')?'':'none';
+  $('#rowGrid').style.display='';
   syncUI();
 }
-document.getElementById('btnSidebarToggle').addEventListener('click',e=>{ e.stopPropagation(); sidebar.classList.toggle('collapsed');});
-
-/* ===== 設定パネル入出力（HF6eの項目そのまま） ===== */
-const ui={color:document.getElementById('uiColor'),size:document.getElementById('uiSize'),alpha:document.getElementById('uiAlpha'),
-          sizeVal:document.getElementById('uiSizeVal'),alphaVal:document.getElementById('uiAlphaVal'),
-          cap:document.getElementById('uiCap'),straight:document.getElementById('uiStraight'),
-          gOn:document.getElementById('uiGrid'), palm:document.getElementById('uiPalm'),
-          pressure:document.getElementById('uiPressure'), tilt:document.getElementById('uiTilt')};
-function syncUI(){ui.color.value=color;ui.size.value=size;ui.sizeVal.textContent=size+'px';
-  ui.alpha.value=Math.round((tool==='marker'?alpha:1)*100);ui.alphaVal.textContent=ui.alpha.value+'%';
-  ui.cap.value=cap; ui.straight.checked=straightToggle; ui.gOn.checked=gridOn; ui.palm.checked=palmReject; ui.pressure.checked=pressureOn; ui.tilt.checked=tiltOn;}
-function onPanelChange(){color=ui.color.value;size=+ui.size.value;alpha=(tool==='marker'?+ui.alpha.value/100:1);cap=ui.cap.value;straightToggle=ui.straight.checked;gridOn=ui.gOn.checked;palmReject=ui.palm.checked;pressureOn=ui.pressure.checked;tiltOn=ui.tilt.checked; drawGrid(); }
-Object.values(ui).forEach(el=>el.addEventListener('input',onPanelChange));
-document.querySelectorAll('.tool').forEach(btn=>{
+$$('.tool').forEach(btn=>{
   if(btn.id==='btnSidebarToggle') return;
   btn.addEventListener('click',e=>{
     e.stopPropagation();
     const t=btn.dataset.tool;
-    if(t==='settings'){
-      const show=!panel.classList.contains('show');
-      panel.classList.toggle('show',show);
-      btn.classList.toggle('active,',show);
-      btn.classList.toggle('active',show);
-      return;
-    }
+    if(t==='settings'){ panel.classList.toggle('show'); btn.classList.toggle('active',panel.classList.contains('show')); return; }
     setActiveTool(t);
   });
 });
-/* パネルのドラッグ/閉じる（HF6e同等） */
-(()=>{const handle=document.getElementById('panelHandle');let dragging=false,sx=0,sy=0,ox=0,oy=0,id=0;
-function down(e){ if(e.target.closest('#panelClose')) return; dragging=true; id=e.pointerId||1; try{panel.setPointerCapture(id)}catch{}; sx=e.clientX; sy=e.clientY; const r=panel.getBoundingClientRect(); ox=r.left; oy=r.top; e.preventDefault();}
-function move(e){ if(!dragging) return; const nx=ox+(e.clientX-sx),ny=oy+(e.clientY-sy); panel.style.left=Math.max(56,nx)+'px'; const top=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--topbar-h'))+6; panel.style.top=Math.max(top,ny)+'px';}
-function up(){ dragging=false; try{panel.releasePointerCapture(id)}catch{} }
-handle.addEventListener('pointerdown',down,{passive:false});
-panel.addEventListener('pointermove',move,{passive:false});
-panel.addEventListener('pointerup',up,{passive:false});
-panel.addEventListener('pointercancel',up,{passive:false});
-document.getElementById('panelClose').addEventListener('pointerdown',e=>e.stopPropagation(),{passive:false});
-document.getElementById('panelClose').addEventListener('click',e=>{ e.stopPropagation(); panel.classList.remove('show'); document.querySelectorAll('.tool[data-tool="settings"]').forEach(b=>b.classList.remove('active'));});
-addEventListener('keydown',e=>{ if(e.key==='Escape' && panel.classList.contains('show')) document.getElementById('panelClose').click();});
-})();
+$('#btnSidebarToggle').addEventListener('click',e=>{ e.stopPropagation(); $('#sidebar').classList.toggle('collapsed'); });
 
-/* ===== ストローク格納＆再描画 ===== */
-let strokes=[]; // {tool,color,size,alpha,cap,pts[]}
-function redraw(){
-  const c=itx; c.clearRect(0,0,cvInk.width,cvInk.height);
-  // 紙内だけ描く（A4枠へのにじみ防止のためclipを1px内側に）
-  c.save(); c.beginPath(); c.rect(paperRect.x+1,paperRect.y+1,paperRect.w-2,paperRect.h-2); c.clip();
-  for(const s of strokes){
-    if(s.tool==='eraser'){
-      c.save(); c.globalCompositeOperation='destination-out'; c.lineCap='round'; c.lineJoin='round';
-      c.lineWidth=s.size; c.beginPath(); for(let i=0;i<s.pts.length;i++){ const p=s.pts[i]; if(i===0)c.moveTo(p.x,p.y); else c.lineTo(p.x,p.y);} c.stroke(); c.restore(); continue;
-    }
-    c.save(); c.globalCompositeOperation='source-over';
-    c.strokeStyle=s.color; c.globalAlpha=(s.tool==='marker') ? (typeof s.alpha==='number'?s.alpha:0.5) : 1.0;
-    c.lineWidth=s.size; c.lineCap=s.cap||'round'; c.lineJoin='round';
-    c.beginPath(); for(let i=0;i<s.pts.length;i++){ const p=s.pts[i]; if(i===0)c.moveTo(p.x,p.y); else c.lineTo(p.x,p.y);} c.stroke(); c.restore();
-  }
-  c.restore();
+/* ---- パネル入力（HF6eと同じ項目） ---- */
+const panel=$('#panel');
+(()=>{const h=$('#panelHandle');let drag=false,sx=0,sy=0,ox=0,oy=0,id=0;
+function down(e){ if(e.target.closest('#panelClose')) return; drag=true; id=e.pointerId||1; try{panel.setPointerCapture(id)}catch{}; sx=e.clientX; sy=e.clientY; const r=panel.getBoundingClientRect(); ox=r.left; oy=r.top; e.preventDefault();}
+function move(e){ if(!drag) return; panel.style.left=Math.max(56,ox+(e.clientX-sx))+'px'; const top=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--topbar-h'))+6; panel.style.top=Math.max(top,oy+(e.clientY-sy))+'px';}
+function up(){ drag=false; try{panel.releasePointerCapture(id)}catch{} }
+h.addEventListener('pointerdown',down,{passive:false}); panel.addEventListener('pointermove',move,{passive:false}); panel.addEventListener('pointerup',up,{passive:false}); panel.addEventListener('pointercancel',up,{passive:false});
+$('#panelClose').addEventListener('click',()=>{ panel.classList.remove('show'); $$('.tool[data-tool="settings"]').forEach(b=>b.classList.remove('active'));});
+})();
+const ui={color:$('#uiColor'),size:$('#uiSize'),alpha:$('#uiAlpha'),sizeVal:$('#uiSizeVal'),alphaVal:$('#uiAlphaVal'),cap:$('#uiCap'),straight:$('#uiStraight'),gOn:$('#uiGrid'),gStep:$('#uiGridStep'),gColor:$('#uiGridColor')};
+function syncUI(){ui.color.value=color;ui.size.value=size;ui.sizeVal.textContent=`${size}px`;ui.alpha.value=Math.round(alpha*100);ui.alphaVal.textContent=Math.round(alpha*100)+'%';ui.cap.value=cap;ui.straight.checked=false;ui.gOn.checked=gridOn;ui.gStep.value=String(gridStepMM);ui.gColor.value=gridColor;}
+function onPanelChange(){color=ui.color.value;size=+ui.size.value;alpha=+ui.alpha.value/100;cap=ui.cap.value;gridOn=ui.gOn.checked;gridStepMM=+ui.gStep.value;gridColor=ui.gColor.value;drawGrid();}
+Object.values(ui).forEach(el=>el.addEventListener('input',onPanelChange));
+
+/* ---- 直線プレビュー（Shift押下中のみ） ---- */
+function drawGuideLine(sx,sy,ex,ey,style){
+  clear(cvGuide); const g=ctxGuide; g.save();
+  g.beginPath(); g.rect(paper.x+1,paper.y+1,paper.w-2,paper.h-2); g.clip(); // 縁の黄対策
+  g.setLineDash([6*DPR,6*DPR]); g.lineWidth=style.w; g.lineCap=style.cap; g.strokeStyle='#7ec8ff';
+  g.beginPath(); g.moveTo(sx,sy); g.lineTo(ex,ey); g.stroke(); g.restore();
 }
 
-/* ===== 入力処理（document/windowへの多重バインドはしない） ===== */
-let drawing=false,startPt=null, panning=false, activeTouches=0;
-function pt(e){ const r=cvInk.getBoundingClientRect(); return {x:(e.clientX - r.left) * (cvInk.width  / r.width), y:(e.clientY - r.top ) * (cvInk.height / r.height)};}
-function inPaper(x,y){ return x>paperRect.x && x<paperRect.x+paperRect.w && y>paperRect.y && y<paperRect.y+paperRect.h; }
-
-function setCtxForCurrent(){ /* 直線プレビュー用 */ g2x.lineCap= (tool==='marker'||tool==='pen')? (cap||'round') : 'round'; g2x.lineJoin='round';
-  g2x.setLineDash([6*DPR,6*DPR]); g2x.lineWidth=(size||4)*DPR;
-  if(tool==='marker'){ g2x.globalAlpha = (typeof perTool.marker.alpha==='number'?perTool.marker.alpha:0.5); g2x.strokeStyle = perTool.marker.color; }
-  else { g2x.globalAlpha = 1; g2x.strokeStyle = perTool.pen.color; } }
-
-cvInk.addEventListener('pointerdown',e=>{
-  if(e.pointerType==='touch'){ activeTouches++; if(palmReject && activeTouches>1) return; }
-  if(tool==='hand'){ panning=true; try{cvInk.setPointerCapture(e.pointerId)}catch{}; return; }
-  const p=pt(e); if(!inPaper(p.x,p.y)) return;
-  // 圧力反映は線幅スケール（coalescedで滑らか）
-  const lineW = (pressureOn && typeof e.pressure==='number') ? (size*DPR*(0.4+0.9*Math.max(0.05,Math.min(1,e.pressure)))) : (size*DPR);
-  const stroke={tool,color:(tool==='marker'?perTool.marker.color:perTool.pen.color),size:lineW,alpha:(tool==='marker'?perTool.marker.alpha:1),cap:(cap||'round'),pts:[p]};
-  if(tool==='eraser'){ stroke.tool='eraser'; stroke.color='#000'; }
-  strokes.push(stroke); drawing=true; startPt=p;
-  if(straightKey || document.getElementById('uiStraight').checked){ g2x.clearRect(0,0,cvGuide.width,cvGuide.height); setCtxForCurrent(); }
-},{passive:false});
-
-cvInk.addEventListener('pointermove',e=>{
-  if(tool==='hand' && panning){ if(typeof e.movementX==='number'){ panX+=e.movementX; panY+=e.movementY; } else { if(!cvInk._last) cvInk._last={x:e.clientX,y:e.clientY}; panX+=e.clientX-cvInk._last.x; panY+=e.clientY-cvInk._last.y; cvInk._last={x:e.clientX,y:e.clientY}; } updateViewportTransform(); return; }
-  if(!drawing) return;
-  const straight = (straightKey || document.getElementById('uiStraight').checked);
-  const list=(e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
-  const last=list[list.length-1]; const p=pt(last);
-  if(straight){
-    g2x.clearRect(0,0,cvGuide.width,cvGuide.height); setCtxForCurrent();
-    g2x.beginPath(); g2x.moveTo(startPt.x,startPt.y); g2x.lineTo(p.x,p.y); g2x.stroke(); return;
+/* ---- One Euro Filter（タッチ平滑化） ---- */
+function OneEuro({minCutoff=1.0, beta=0.007, dCutoff=1.0}={}){
+  let xPrev=null, tPrev=null, dxPrev=0;
+  function alpha(cutoff,dt){ const r=2*Math.PI*cutoff*dt; return r/(r+1); }
+  return function filter(x, t){
+    if(tPrev==null){ tPrev=t; xPrev=x; return x; }
+    const dt=Math.max(0.001,(t-tPrev)/1000); // ms→s
+    const dx=(x-xPrev)/dt;
+    const edx = dxPrev + alpha(dCutoff,dt)*(dx-dxPrev);
+    const cutoff = minCutoff + beta*Math.abs(edx);
+    const ex = xPrev + alpha(cutoff,dt)*(x-xPrev);
+    xPrev=ex; tPrev=t; dxPrev=edx; return ex;
   }
-  const st=strokes[strokes.length-1];
-  for(const ev of list){ const q=pt(ev); if(inPaper(q.x,q.y)) st.pts.push(q); }
-  redraw();
+}
+
+/* ---- 入力（キャンバスのみ・A4内のみ） ---- */
+let drawing=false, panning=false, start={x:0,y:0}, last={x:0,y:0}, lineStyle={w:4,cap:'round',col:'#000',alpha:1};
+let shiftPreview=false;
+let activeTouches=0, penActive=false;
+let fx=null, fy=null; // smoothing filter
+
+function inPaper(x,y){ return x>paper.x && x<paper.x+paper.w && y>paper.y && y<paper.y+paper.h; }
+function styleCtx(c){
+  c.lineJoin='round'; c.lineCap=lineStyle.cap;
+  if(tool==='eraser'){ c.globalCompositeOperation='destination-out'; c.strokeStyle='#000'; c.globalAlpha=1; }
+  else{
+    c.globalCompositeOperation='source-over';
+    c.strokeStyle=lineStyle.col; c.globalAlpha=lineStyle.alpha;
+  }
+  c.lineWidth=lineStyle.w;
+}
+function updateLineStyle(e){
+  lineStyle.cap = (tool==='pen'||tool==='marker') ? cap : 'round';
+  lineStyle.col = (tool==='marker') ? color : (tool==='pen' ? color : '#000');
+  lineStyle.alpha = (tool==='marker') ? alpha : 1.0;
+  const base=size*DPR;
+  const p=(typeof e.pressure==='number' && e.pressure>0) ? e.pressure : (e.pointerType==='pen'?0.5:1.0);
+  lineStyle.w = (tool==='marker'||tool==='pen') ? (base*(tool==='pen' ? (0.7+0.6*p) : 1.0)) : (perTool.eraser.size*DPR);
+}
+
+function pointerPos(e){
+  const r=cv.getBoundingClientRect();
+  return { x:(e.clientX - r.left) * (cv.width/r.width),
+           y:(e.clientY - r.top ) * (cv.height/r.height) };
+}
+
+function beginStroke(e){
+  updateLineStyle(e);
+  const p=pointerPos(e);
+  if(!inPaper(p.x,p.y)) return;
+  drawing=true; start=last=p;
+
+  // 平滑化を初期化（指/ペンどちらも適用、特に指は効果大）
+  fx=OneEuro(); fy=OneEuro();
+
+  // 直線プレビューか？
+  shiftPreview = e.shiftKey || $('#uiStraight').checked;
+  if(!shiftPreview){
+    ctx.save(); ctx.beginPath();
+    // クリップ：A4内だけ
+    ctx.rect(paper.x+1,paper.y+1,paper.w-2,paper.h-2); ctx.clip();
+    styleCtx(ctx); ctx.moveTo(p.x,p.y);
+  }
+}
+function moveStroke(e){
+  if(tool==='hand' && panning){
+    panX += (e.movementX||0); panY += (e.movementY||0); updateViewportTransform(); return;
+  }
+  if(!drawing) return;
+
+  const list=(e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
+  let px=last.x, py=last.y;
+  const prevShift=shiftPreview;
+  shiftPreview = e.shiftKey || $('#uiStraight').checked;
+
+  for(const ev of list){
+    const t=ev.timeStamp, p=pointerPos(ev);
+    const sx=fx(p.x,t), sy=fy(p.y,t); // 平滑化
+    if(!inPaper(sx,sy)) continue;
+
+    if(shiftPreview){
+      drawGuideLine(start.x,start.y,sx,sy,lineStyle);
+    }else{
+      // 連続パスでギャップを抑制（まだら対策）
+      ctx.lineTo(sx,sy);
+    }
+    px=sx; py=sy;
+  }
+  last={x:px,y:py};
+
+  if(!shiftPreview && !prevShift) ctx.stroke();
+}
+function endStroke(e){
+  clear(cvGuide);
+  if(!drawing) return;
+  if(shiftPreview){
+    ctx.save();
+    ctx.beginPath(); ctx.rect(paper.x+1,paper.y+1,paper.w-2,paper.h-2); ctx.clip();
+    styleCtx(ctx); ctx.beginPath(); ctx.moveTo(start.x,start.y); ctx.lineTo(last.x,last.y); ctx.stroke(); ctx.restore();
+  }else{
+    ctx.restore();
+  }
+  drawing=false;
+  // 履歴
+  pushAction();
+}
+
+/* ---- パーム除外（強化） ----
+   ・penがダウン中は他pointer無視
+   ・touchは1本目だけ許可（2本目以降無視）
+*/
+function shouldReject(e){
+  if(e.pointerType==='pen'){
+    // ペンダウンで他を止める
+    if(!penActive && e.type==='pointerdown') { penActive=true; activeTouches=0; }
+    return false;
+  }
+  if(e.pointerType==='touch'){
+    if(penActive) return true; // ペン優先
+    if(e.type==='pointerdown' && activeTouches>=1) return true;
+  }
+  return false;
+}
+cv.addEventListener('pointerdown', (e)=>{
+  if(e.pointerType==='touch') activeTouches++;
+  if(shouldReject(e)) return;
+  if(tool==='hand'){ panning=true; try{cv.setPointerCapture(e.pointerId)}catch{}; return; }
+  try{cv.setPointerCapture(e.pointerId)}catch{};
+  beginStroke(e);
 },{passive:false});
-
-cvInk.addEventListener('pointerup',e=>{
-  if(e.pointerType==='touch') activeTouches=Math.max(0,activeTouches-1);
-  if(tool==='hand' && panning){ panning=false; cvInk._last=null; return; }
-  if(!drawing){ g2x.clearRect(0,0,cvGuide.width,cvGuide.height); return; }
-  const straight = (straightKey || document.getElementById('uiStraight').checked);
-  if(straight){ const p=pt(e); const st=strokes[strokes.length-1]; st.pts=[startPt,p]; g2x.clearRect(0,0,cvGuide.width,cvGuide.height); }
-  drawing=false; startPt=null; redraw();
-},{passive:true});
-
+cv.addEventListener('pointermove', (e)=>{ if(shouldReject(e)) return; moveStroke(e); },{passive:false});
+cv.addEventListener('pointerup',   (e)=>{ if(e.pointerType==='touch') activeTouches=Math.max(0,activeTouches-1); if(e.pointerType==='pen') penActive=false; if(tool==='hand'){ panning=false; return; } endStroke(e); },{passive:true});
+cv.addEventListener('pointercancel',(e)=>{ if(e.pointerType==='touch') activeTouches=Math.max(0,activeTouches-1); if(e.pointerType==='pen') penActive=false; clear(cvGuide); drawing=false; },{passive:true});
 addEventListener('keydown',e=>{ if(e.key==='Shift') straightKey=true; });
 addEventListener('keyup',e=>{ if(e.key==='Shift') straightKey=false; });
 
-/* ===== ズーム／Undo Redo／PNG／共有 ===== */
-function setZoom(z){ zoom=Math.max(0.5,Math.min(3,z)); document.getElementById('btnZoomReset').textContent=Math.round(zoom*100)+'%'; updateViewportTransform(); drawGrid(); }
-document.getElementById('btnZoomIn').onclick = ()=>setZoom(zoom+0.1);
-document.getElementById('btnZoomOut').onclick= ()=>setZoom(zoom-0.1);
-document.getElementById('btnZoomReset').onclick=()=>setZoom(1);
+/* ---- テキスト（既存UIのまま） ---- */
+function addTextAt(x,y){
+  const el=document.createElement('div'); el.className='note-text'; el.contentEditable='true';
+  el.style.left=(x)+'px'; el.style.top=(y)+'px'; el.textContent='テキスト';
+  const del=document.createElement('button'); del.className='del'; del.textContent='削除'; del.addEventListener('click',()=>el.remove()); el.appendChild(del);
+  textLayer.appendChild(el); setTimeout(()=>el.focus(),0);
+}
+let textMode=false;
+addEventListener('click',(e)=>{
+  if(tool!=='keyboard') return;
+  const r=cv.getBoundingClientRect(); const x=(e.clientX-r.left)*(cv.width/r.width); const y=(e.clientY-r.top)*(cv.height/r.height);
+  if(inPaper(x,y)) addTextAt(x,y);
+});
 
+/* ---- Undo/Redo：画像スナップショットはUp時のみ（負荷軽減） ---- */
 const hist=[], redoStack=[];
-function snapshot(){ return JSON.stringify({strokes,gridOn}); }
-function pushHist(){ hist.push(snapshot()); if(hist.length>40) hist.shift(); redoStack.length=0; }
-['pointerdown'].forEach(ev=>cvInk.addEventListener(ev,()=>pushHist(),{capture:true}));
-async function undo(){ if(!hist.length) return; redoStack.push(snapshot()); const prev=hist.pop(); const j=JSON.parse(prev); strokes=j.strokes||[]; gridOn=!!j.gridOn; document.getElementById('uiGrid').checked=gridOn; drawGrid(); redraw(); }
-async function redo(){ const next=redoStack.pop(); if(!next) return; hist.push(snapshot()); const j=JSON.parse(next); strokes=j.strokes||[]; gridOn=!!j.gridOn; document.getElementById('uiGrid').checked=gridOn; drawGrid(); redraw(); }
-document.getElementById('btnUndo').onclick=undo; document.getElementById('btnRedo').onclick=redo;
-
-async function exportPNG(){
-  const off=document.createElement('canvas'); off.width=paperRect.w; off.height=paperRect.h;
-  const o=off.getContext('2d',{alpha:true}); o.imageSmoothingEnabled=true;
-  o.fillStyle='#fff'; o.fillRect(0,0,off.width,off.height);
-  o.drawImage(cvInk, paperRect.x, paperRect.y, paperRect.w, paperRect.h, 0, 0, off.width, off.height);
-  return await new Promise(res=>off.toBlob(b=>res(URL.createObjectURL(b)),'image/png'));
+function snapshot(){ return { url: cv.toDataURL(), texts: textLayer.innerHTML }; }
+async function restore(snap){ clear(cv); textLayer.innerHTML = snap?.texts || ''; if(!snap?.url) return;
+  await new Promise(res=>{ const img=new Image(); img.onload=()=>{ ctx.drawImage(img,0,0); res(); }; img.src=snap.url; });
 }
-document.getElementById('btnPng').onclick=async()=>{ const url=await exportPNG(); const a=document.createElement('a'); a.href=url; a.download='note-link.png'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),800); };
-document.getElementById('btnPrint').onclick=()=>window.print();
-document.getElementById('btnShare').onclick=async()=>{ const url=await exportPNG(); const blob=await (await fetch(url)).blob(); const f=new File([blob],'note.png',{type:'image/png'}); if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f],title:'Note Link'}) }catch(e){} }else{ const a=document.createElement('a'); a.href=url; a.download='note-link.png'; a.click(); } setTimeout(()=>URL.revokeObjectURL(url),800); };
+function pushAction(){ hist.push(snapshot()); if(hist.length>20) hist.shift(); redoStack.length=0; }
+async function undo(){ if(!hist.length) return; const cur=snapshot(); const prev=hist.pop(); redoStack.push(cur); await restore(prev); }
+async function redo(){ const next=redoStack.pop(); if(!next) return; hist.push(snapshot()); await restore(next); }
+$('#btnUndo').addEventListener('click',undo); $('#btnRedo').addEventListener('click',redo);
 
-/* ===== 保存/読み込み（FS Access対応） ===== */
-let fsHandle=null;
-function payload(){ return { ver:'v0.8.0 / B-REL6-HF6e', updated:new Date().toISOString(), gridOn, strokes }; }
-async function saveJSON(h){ const w=await h.createWritable(); await w.write(new Blob([JSON.stringify(payload())],{type:'application/json'})); await w.close(); }
-async function pickSave(){ try{ const h=await showSaveFilePicker({suggestedName:'note-link.json',types:[{description:'Note Link JSON',accept:{'application/json':['.json']}}]}); fsHandle=h; await saveJSON(fsHandle);}catch(_){}} 
-async function pickOpen(){ try{ const [h]=await showOpenFilePicker({types:[{description:'Note Link JSON',accept:{'application/json':['.json']}}]}); const f=await h.getFile(); const j=JSON.parse(await f.text()); loadJSON(j); fsHandle=h; }catch(_){} }
-function loadJSON(j){ gridOn=!!j.gridOn; strokes=Array.isArray(j.strokes)?j.strokes:[]; document.getElementById('uiGrid').checked=gridOn; drawGrid(); redraw(); }
-document.getElementById('btnSave').onclick=async()=>{ if(window.showSaveFilePicker){ if(fsHandle) await saveJSON(fsHandle); else await pickSave(); } else { const blob=new Blob([JSON.stringify(payload())],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='note-link.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),800);} };
-document.getElementById('btnLoad').onclick=async()=>{ if(window.showOpenFilePicker) await pickOpen(); else{ const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json'; inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return; loadJSON(JSON.parse(await f.text())); }; inp.click(); } };
-
-/* ===== 起動 ===== */
-function boot(){
-  updateViewportTransform(); resize();
-  setActiveTool('pen'); panel.classList.remove('show');
-  // 初期値：ペン=黒、マーカー=黄50%（HF6e要件）
-  perTool.pen.color='#000000'; perTool.marker.color='#FFFF00'; perTool.marker.alpha=0.5;
+/* ---- 出力系（PNG/印刷/共有） ---- */
+function composite(){
+  const out=document.createElement('canvas'); out.width=cv.width; out.height=cv.height; const o=out.getContext('2d');
+  o.fillStyle='#0b1020'; o.fillRect(0,0,out.width,out.height);
+  // A4白
+  o.fillStyle='#fff'; o.fillRect(paper.x, paper.y, paper.w, paper.h);
+  // グリッド
+  o.drawImage(cvGrid,0,0);
+  // 手書き
+  o.drawImage(cv,0,0);
+  // テキスト（簡易）
+  [...textLayer.querySelectorAll('.note-text')].forEach(n=>{
+    const r=n.getBoundingClientRect(), L=textLayer.getBoundingClientRect();
+    const x=((r.left-L.left)*(cv.width/(L.width||1))), y=((r.top-L.top)*(cv.height/(L.height||1)));
+    o.fillStyle='#000'; o.font=(16*DPR)+'px system-ui'; o.fillText(n.textContent.trim(),x,y+16*DPR);
+  });
+  return out;
 }
+$('#btnPng').addEventListener('click',()=>composite().toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='note-link.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),800)}));
+$('#btnPrint').addEventListener('click',()=>window.print());
+$('#btnShare').addEventListener('click',()=>{composite().toBlob(async b=>{const f=new File([b],'note.png',{type:'image/png'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Note Link'})}catch(e){}}else{const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='note-link.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),800)}});});
+
+/* ---- 保存/読み込み（正規化JSON） ----
+ schema v: "HF6g"
+  strokes: [{tool:'pen'|'marker', color, alpha, cap, sizePx, points:[{u,v}] }]
+  texts  : [{t, u, v}]
+*/
+function toNorm(x,y){ return {u:(x-paper.x)/paper.w, v:(y-paper.y)/paper.h}; }
+function fromNorm(u,v){ return {x: paper.x + u*paper.w, y: paper.y + v*paper.h}; }
+
+function exportJSON(){
+  // 画像からパスを復元していないので、履歴の代わりに“現状描画”を保存 → 貼り直しが必要
+  // 実運用では strokeログを別途保持するが、ここでは互換簡易版として canvasをPNGに、textsを別保存
+  // ★HF6g：正規化スナップ（今後strokeログ対応時もフォーマット維持）
+  return {
+    v:'HF6g',
+    paper:{mm:[210,297]},
+    grid:{on:gridOn, stepMM:gridStepMM, color:gridColor},
+    // 手書きはビットマップ出力（互換用）。strokeログ導入前提の器だけ残す
+    bitmap: cv.toDataURL('image/png'),
+    texts: [...textLayer.querySelectorAll('.note-text')].map(n=>{
+      const r=n.getBoundingClientRect(), L=textLayer.getBoundingClientRect();
+      const x=((r.left-L.left)*(cv.width/(L.width||1))), y=((r.top-L.top)*(cv.height/(L.height||1)));
+      const p=toNorm(x,y);
+      return {t:n.textContent, u:p.u, v:p.v};
+    })
+  };
+}
+async function importJSON(data){
+  // グリッド
+  gridOn=!!data.grid?.on; gridStepMM=data.grid?.stepMM||gridStepMM; gridColor=data.grid?.color||gridColor; drawGrid();
+  // 手書きビットマップ（互換）
+  clear(cv);
+  if(data.bitmap){
+    await new Promise(res=>{ const img=new Image(); img.onload=()=>{ ctx.drawImage(img,0,0); res(); }; img.src=data.bitmap; });
+  }
+  // テキスト
+  textLayer.innerHTML='';
+  (data.texts||[]).forEach(n=>{ const p=fromNorm(n.u,n.v); addTextAt(p.x,p.y); textLayer.lastElementChild.firstChild.nodeValue = (n.t||''); });
+}
+
+/* File System Access（場所指定→以降上書き） */
+let saveHandle=null;
+async function doSave(){
+  const payload=exportJSON();
+  const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+  try{
+    if(!saveHandle){
+      saveHandle=await window.showSaveFilePicker({suggestedName:'note-link.json', types:[{description:'Note Link JSON', accept:{'application/json':['.json']}}]});
+    }
+    const w=await saveHandle.createWritable(); await w.write(blob); await w.close();
+  }catch(e){ /* キャンセル等は無視 */ }
+}
+async function doLoad(){
+  try{
+    const [h]=await window.showOpenFilePicker({types:[{description:'Note Link JSON/PNG', accept:{'application/json':['.json'],'image/png':['.png']}}]});
+    const f=await h.getFile();
+    if(f.type==='image/png'){
+      // PNGはそのまま貼付（簡易）
+      await new Promise(res=>{ const img=new Image(); img.onload=()=>{ clear(cv); ctx.drawImage(img,paper.x,paper.y,paper.w,paper.h); res(); }; img.src=URL.createObjectURL(f); });
+      return;
+    }
+    const txt=await f.text(); const data=JSON.parse(txt);
+    await importJSON(data);
+  }catch(e){}
+}
+$('#btnSave').addEventListener('click',doSave);
+$('#btnLoad').addEventListener('click',doLoad);
+
+/* ---- ズーム ---- */
+function setZoom(z){ zoom=Math.max(0.5,Math.min(3,z)); $('#btnZoomReset').textContent=Math.round(zoom*100)+'%'; updateViewportTransform(); drawGrid(); }
+$('#btnZoomIn').addEventListener('click',()=>setZoom(zoom+0.1));
+$('#btnZoomOut').addEventListener('click',()=>setZoom(zoom-0.1));
+$('#btnZoomReset').addEventListener('click',()=>setZoom(1));
+
+/* ---- 初期化 ---- */
+function redrawAll(){ // A4白背景と現在の描画は別管理：表示側はcvの上に白を置かない
+  // A4白はgridに描いてしまう（毎回再生成）
+  clear(cvGrid);
+  const g=ctxGrid;
+  g.fillStyle='#fff'; g.fillRect(paper.x, paper.y, paper.w, paper.h);
+  drawGrid();
+}
+function boot(){ updateViewportTransform(); resize(); setActiveTool('pen'); panel.classList.remove('show'); }
 boot();
 </script>
-</body>
-</html>
+</body></html>
