@@ -2,7 +2,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NOTE LINK — v0.8.0 / B-REL6-HF6j</title>
+<title>NOTE LINK — v0.8.0 / B-REL6-HF6k</title>
 <style>
 :root{
   --ink:#e6f1ff;--ink-dim:#9bd6e9;--bg:#0b1020;--panel:#101827;--accent:#3f78ff;
@@ -84,12 +84,15 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 </head>
 <body>
 <header class="topbar" id="topbar">
-  <strong id="verText">NOTE LINK — v0.8.0 / B-REL6-HF6j</strong>
+  <strong id="verText">NOTE LINK — v0.8.0 / B-REL6-HF6k</strong>
   <span class="sp"></span>
 
   <!-- 画像：末尾追加／直後挿入（既存仕様維持） -->
   <button class="btn" id="btnImgAppend">画像追加</button>
   <button class="btn" id="btnImgInsert">画像挿入</button>
+
+  <!-- 現ページに背景設定（オーバーフロー内にも複製） -->
+  <button class="btn" id="btnAddPage">＋ページ</button>
 
   <!-- 読み込み／保存（既存仕様維持） -->
   <button class="btn" id="btnLoad">読み込み</button>
@@ -116,7 +119,7 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 
   <!-- コンパクト用「⋯」 -->
   <button class="btn" id="btnMore">⋯</button>
-  <span class="build" id="buildText">build: HF6j</span>
+  <span class="build" id="buildText">build: HF6k</span>
 </header>
 
 <!-- コンパクト表示のオーバーフローパネル -->
@@ -124,6 +127,9 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
   <button class="btn" id="btnPrev_m">◀︎ 前</button>
   <div style="text-align:center;color:#fff;margin:4px 0">ページ <span id="pageIndicator_m">1/1</span></div>
   <button class="btn" id="btnNext_m">次 ▶︎</button>
+  <hr style="border-color:#ffffff22">
+  <button class="btn" id="btnAddPage_m">＋ページ</button>
+  <button class="btn" id="btnSetBg_m">画像を背景に設定</button>
 </div>
 
 <aside class="sidebar" id="sidebar">
@@ -210,8 +216,8 @@ const cv=$('#paint'), ctx=cv.getContext('2d',{alpha:true});
 const textLayer=$('#textLayer');
 
 /* ====== version ====== */
-$('#verText').textContent='NOTE LINK — v0.8.0 / B-REL6-HF6j';
-$('#buildText').textContent='build: HF6j';
+$('#verText').textContent='NOTE LINK — v0.8.0 / B-REL6-HF6k';
+$('#buildText').textContent='build: HF6k';
 
 /* ====== layout (fix: canvas size independent of zoom) ====== */
 let zoom=1, panX=0, panY=0, W=0, H=0;
@@ -228,6 +234,7 @@ function fitCanvases(){
   layoutPaper(); drawPaper(); redrawAll();
 }
 addEventListener('resize',()=>{applyBars(); fitCanvases(); updateTopbarCompact();});
+addEventListener('orientationchange',()=>{ setTimeout(()=>{applyBars(); fitCanvases(); updateTopbarCompact();}, 50); });
 applyBars();
 
 /* ====== A4 paper ====== */
@@ -278,6 +285,8 @@ $('#btnPrev').onclick=()=>setPage(Pages.idx-1);
 $('#btnNext').onclick=()=>setPage(Pages.idx+1);
 $('#btnPrev_m').onclick=()=>{ setPage(Pages.idx-1); toggleMore(false); };
 $('#btnNext_m').onclick=()=>{ setPage(Pages.idx+1); toggleMore(false); };
+$('#btnAddPage').onclick=()=>{ Pages.list.push({strokes:[],textsHTML:'',bg:null}); setPage(Pages.list.length-1); pushHistory(); };
+$('#btnAddPage_m').onclick=()=>{ Pages.list.push({strokes:[],textsHTML:'',bg:null}); setPage(Pages.list.length-1); toggleMore(false); pushHistory(); };
 addEventListener('keydown',e=>{
   if(e.key==='ArrowLeft') setPage(Pages.idx-1);
   if(e.key==='ArrowRight') setPage(Pages.idx+1);
@@ -286,7 +295,8 @@ addEventListener('keydown',e=>{
 /* ====== topbar compact overflow ====== */
 function updateTopbarCompact(){
   const threshold = 860; // 縦タブレット/スマホ想定
-  topbar.classList.toggle('compact', innerWidth < threshold);
+  const needCompact = (innerWidth < threshold) || (topbar.scrollWidth > topbar.clientWidth);
+  topbar.classList.toggle('compact', needCompact);
 }
 const morePanel=$('#morePanel'); const btnMore=$('#btnMore');
 function toggleMore(on){ morePanel.style.display=on?'block':'none'; }
@@ -356,10 +366,11 @@ function pointerToCanvas(e){
 }
 function inPaperXY(x,y){ return x>=paperRect.x && y>=paperRect.y && x<=paperRect.x+paperRect.w && y<=paperRect.y+paperRect.h; }
 
-/* ====== draw ====== */
+/* ====== draw (with smoothing) ====== */
 let drawing=false, panning=false, start={x:0,y:0}, last={x:0,y:0}, activeTouches=0;
 let currentStroke=null;
 function setCtx(){
+  ctx.imageSmoothingEnabled=true; ctx.miterLimit=2;
   ctx.lineJoin='round'; ctx.lineCap=(tool==='marker'||tool==='pen')?cap:'round';
   if(tool==='eraser'){ ctx.globalCompositeOperation='destination-out'; ctx.strokeStyle='#000'; ctx.globalAlpha=1; }
   else if(tool==='marker'){ ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=color; ctx.globalAlpha=alpha; }
@@ -377,9 +388,27 @@ function clearGuide(){ gGuide.clearRect(0,0,cvGuide.width,cvGuide.height); }
 function toUV(x,y){ return {u:(x-paperRect.x)/paperRect.w, v:(y-paperRect.y)/paperRect.h}; }
 function fromUV(u,v){ return {x:paperRect.x + u*paperRect.w, y:paperRect.y + v*paperRect.h}; }
 
+function quadStroke(ctx, pts){
+  if(pts.length<2) return;
+  ctx.beginPath();
+  let p0 = pts[0];
+  ctx.moveTo(p0.x, p0.y);
+  for(let i=1;i<pts.length-1;i++){
+    const p1=pts[i], p2=pts[i+1];
+    const mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
+    ctx.quadraticCurveTo(p1.x,p1.y,mx,my);
+  }
+  // 最後の点まで
+  const last=pts[pts.length-1];
+  ctx.lineTo(last.x,last.y);
+  ctx.stroke();
+}
+
 function onDown(e){
   if(e.pointerType==='touch') activeTouches++;
   if(tool==='hand'){ panning=true; cv.style.cursor='grabbing'; return; }
+  // テキスト編集中は描かない
+  if(document.activeElement && document.activeElement.classList.contains('note-text')) return;
   if($('#uiPalm').checked && e.pointerType==='touch' && activeTouches>1){ return; }
   const p=pointerToCanvas(e); if(!inPaperXY(p.x,p.y)) return;
   e.preventDefault(); try{cv.setPointerCapture(e.pointerId)}catch{}
@@ -388,26 +417,33 @@ function onDown(e){
   // start new stroke
   currentStroke={tool:(tool==='marker'?'marker':tool==='eraser'?'eraser':'pen'),
     color:(tool==='marker'||tool==='pen')?color:'#000000', alpha:(tool==='marker')?alpha:1, cap:cap,
-    sizeU:(size/paperRect.h), pts:[toUV(p.x,p.y)]
+    sizeU:(size/paperRect.h), pts:[toUV(p.x,p.y)],
+    _buf:[p]  // 画面用座標のバッファ（スムージング描画用）
   };
 }
 function onMove(e){
   if(tool==='hand' && panning){ panX+=e.movementX||0; panY+=e.movementY||0; updateViewportTransform(); return; }
   if(!drawing) return;
-  const p=pointerToCanvas(e);
   const straight=(straightKey||$('#uiStraight').checked);
+  const p=pointerToCanvas(e);
   if(straight){ showGuide(start.x,start.y,p.x,p.y); return; }
 
-  const evs=(e.getCoalescedEvents&&e.getCoalescedEvents())||[e];
-  setCtx(); ctx.beginPath(); ctx.moveTo(last.x,last.y);
-  for(const ev of evs){
+  const list=(e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
+  const pts=[];
+  for(const ev of list){
     const q=pointerToCanvas(ev);
     if(!inPaperXY(q.x,q.y)) continue;
-    ctx.lineTo(q.x,q.y);
-    currentStroke.pts.push(toUV(q.x,q.y)); // ★フリーハンド点を保存
-    last=q;
+    currentStroke.pts.push(toUV(q.x,q.y));
+    pts.push(q);
   }
-  ctx.stroke();
+  if(!pts.length) return;
+
+  // スムージング描画：前回の末尾 + 今回の新点列で二次ベジェ
+  setCtx();
+  const all = currentStroke._buf.concat(pts);
+  quadStroke(ctx, all.slice(-Math.min(all.length, 24))); // 直近のみで描画して負荷軽減
+  currentStroke._buf = all.slice(-12); // バッファ保持点数
+  last=pts[pts.length-1];
 }
 function onUp(e){
   if(e.pointerType==='touch') activeTouches=Math.max(0,activeTouches-1);
@@ -435,15 +471,15 @@ function redrawAll(){
   ctx.save(); ctx.beginPath(); ctx.rect(paperRect.x,paperRect.y,paperRect.w,paperRect.h); ctx.clip();
   for(const st of Pages.cur().strokes){
     const w=st.sizeU*paperRect.h;
+    ctx.imageSmoothingEnabled=true; ctx.miterLimit=2;
     ctx.lineJoin='round'; ctx.lineCap=st.cap||'round';
     ctx.globalCompositeOperation=(st.tool==='eraser')?'destination-out':'source-over';
     ctx.globalAlpha=(st.tool==='marker')?(st.alpha??0.5):1.0;
     ctx.strokeStyle=(st.tool==='pen'||st.tool==='marker')?(st.color||'#000'):'#000';
     ctx.lineWidth=Math.max(1,Math.round(w));
-    const p0=fromUV(st.pts[0].u,st.pts[0].v);
-    ctx.beginPath(); ctx.moveTo(p0.x,p0.y);
-    for(let i=1;i<st.pts.length;i++){ const pi=fromUV(st.pts[i].u,st.pts[i].v); ctx.lineTo(pi.x,pi.y); }
-    ctx.stroke();
+    // 平滑化して再描画
+    const pts=st.pts.map(p=>fromUV(p.u,p.v));
+    quadStroke(ctx, pts);
   }
   ctx.restore();
 }
@@ -453,9 +489,8 @@ function addText(){const el=document.createElement('div');el.className='note-tex
   el.style.left=(paperRect.x/DPR+20)+'px'; el.style.top=(paperRect.y/DPR+20)+'px'; el.textContent='テキスト';
   const del=document.createElement('button');del.className='del';del.textContent='削除';del.addEventListener('click',()=>el.remove());
   el.appendChild(del); textLayer.appendChild(el); el.focus(); pushHistory();
-  // テキスト編集中は描画キャンバスのポインタを無効化（誤入力防止）
-  el.addEventListener('focus',()=>{ cv.style.pointerEvents='none'; });
-  el.addEventListener('blur', ()=>{ cv.style.pointerEvents='auto'; });
+  el.addEventListener('focusin',()=>{ cv.style.pointerEvents='none'; textLayer.style.touchAction='manipulation'; });
+  el.addEventListener('focusout', ()=>{ cv.style.pointerEvents='auto'; textLayer.style.touchAction='none'; Pages.cur().textsHTML=textLayer.innerHTML; pushHistory(); });
   el.addEventListener('pointerdown',e=>e.stopPropagation());
 }
 $('#btnTextAdd').onclick=addText;
@@ -482,8 +517,10 @@ $('#btnShare').onclick=()=>{composite().toBlob(async b=>{const f=new File([b],'n
 /* ====== save/load (JSON, pages+bg) ====== */
 let fileHandle=null;
 function exportJSON(){
+  // 現在のテキストを反映
+  Pages.cur().textsHTML=textLayer.innerHTML;
   return JSON.stringify({
-    v:'HF6j',
+    v:'HF6k',
     pages: Pages.list.map(pg=>({strokes:pg.strokes||[],textsHTML:pg.textsHTML||'', bg:pg.bg && pg.bg.dataURL ? {dataURL:pg.bg.dataURL}:null})),
     idx: Pages.idx,
     grid:{on:gridOn,stepMM:gridStepMM,color:gridColor}
@@ -556,15 +593,23 @@ async function addImage(mode){ // 'append'|'insert'
   else { const pos=Pages.idx+1; Pages.list.splice(pos,0,{strokes:[],textsHTML:'',bg}); setPage(pos); }
   pushHistory();
 }
+async function setCurrentBackground(){
+  const file=await pickImage(); if(!file) return;
+  const tmp=new Image(); tmp.src=URL.createObjectURL(file);
+  await new Promise(r=>{ tmp.onload=r; tmp.onerror=r; });
+  const bg=fitImageToPaper(tmp); URL.revokeObjectURL(tmp.src);
+  Pages.cur().bg=bg; drawPaper(); redrawAll(); pushHistory();
+}
 $('#btnImgAppend').onclick=()=>addImage('append');
 $('#btnImgInsert').onclick=()=>addImage('insert');
+$('#btnSetBg_m').onclick=()=>{ setCurrentBackground(); toggleMore(false); };
 
 /* ====== undo/redo ====== */
 const hist=[], redoStack=[];
 function snapshot(){ return {pages:JSON.parse(JSON.stringify(Pages.list.map(p=>({strokes:p.strokes,textsHTML:p.textsHTML,bg:p.bg?{dataURL:p.bg.dataURL}:null})))), idx:Pages.idx, grid:{on:gridOn,step:gridStepMM,color:gridColor}}; }
 function pushHistory(){ hist.push(snapshot()); if(hist.length>40) hist.shift(); redoStack.length=0; updatePageIndicator(); }
 function restoreSnap(s){
-  Pages.list=s.pages.map(pg=>{ const entry={strokes:pg.strokes||[],textsHTML:pg.textsHTML||'',bg:null}; if(pg.bg&&pg.bg.dataURL){ const img=new Image(); img.src=pg.bg.dataURL; entry.bg={dataURL:pg.bg.dataURL,img}; } return entry; });
+  Pages.list=s.pages.map(pg=>{ const entry={strokes:pg.strokes||=[],textsHTML:pg.textsHTML||'',bg:null}; if(pg.bg&&pg.bg.dataURL){ const img=new Image(); img.src=pg.bg.dataURL; entry.bg={dataURL:pg.bg.dataURL,img}; } return entry; });
   Pages.idx=Math.max(0,Math.min(Pages.list.length-1,s.idx||0));
   gridOn=s.grid.on; gridStepMM=s.grid.step; gridColor=s.grid.color;
   textLayer.innerHTML=Pages.cur().textsHTML||''; updatePageIndicator(); drawPaper(); redrawAll();
@@ -572,15 +617,15 @@ function restoreSnap(s){
 $('#btnUndo').onclick=()=>{ if(!hist.length) return; const cur=snapshot(); const prev=hist.pop(); redoStack.push(cur); restoreSnap(prev); };
 $('#btnRedo').onclick=()=>{ const nxt=redoStack.pop(); if(!nxt) return; hist.push(snapshot()); restoreSnap(nxt); };
 
-/* ====== zoom (anchor at viewport center) ====== */
-function setZoom(z){
-  const z0=zoom, z1=Math.max(0.6,Math.min(3,z));
+/* ====== zoom (anchor at viewport center, correct for translate-before-scale) ====== */
+function setZoom(z1){
+  const z0=zoom; z1=Math.max(0.6,Math.min(3,z1));
   const vr=viewport.getBoundingClientRect();
   const Cx=vr.width/2, Cy=vr.height/2; // 要素内中心（ローカル）
-  const Ux=(Cx - panX)/z0, Uy=(Cy - panY)/z0; // 中心のワールド座標
+  // 変換順: translate -> scale なので、 p1 = p0 + C*(1/z1 - 1/z0)
+  panX = panX + Cx*(1/z1 - 1/z0);
+  panY = panY + Cy*(1/z1 - 1/z0);
   zoom=z1;
-  panX = Cx - Ux*z1;
-  panY = Cy - Uy*z1;
   updateViewportTransform();
   $('#btnZoomReset').textContent=Math.round(zoom*100)+'%';
 }
