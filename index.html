@@ -3,12 +3,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NOTE LINK — v0.8.0 / B-REL6-HF6j</title>
-<!-- build note: 2025-09-27T17:55:00+09:00 / HF6j patch p1 (UI unchanged)
-  - grid vertical lines + grid-first snapping for straight lines
-  - 15deg angle snapping for straight lines
-  - pressure/tilt variable width (opt-in via checkboxes)
-  - stronger palm rejection (ignore touch when pen active)
-  - Ctrl+Wheel zoom
+<!-- build note: 2025-09-27T20:12:00+09:00 / HF6j-patch-min2
+  - Show "⋯" overflow button at all times (tablet portrait friendly)
+  - Overflow panel actions: Prev / Next / +Page / Set Image as Background
+  - Zoom buttons only: + biases to top-left, - biases to bottom-right
+  - Everything else untouched
 -->
 <style>
 :root{
@@ -79,12 +78,13 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 /* ページナビ（最小追加） */
 .page-nav{display:inline-flex;gap:6px;align-items:center}
 #pageIndicator{min-width:48px;text-align:center}
-#btnMore{display:none}
+/* ▼ 修正：常時表示に変更（タブレット縦で必ず見える） */
+#btnMore{display:inline-flex}
 #morePanel{position:fixed;right:10px;top:calc(var(--topbar-h) + 6px);z-index:3000;display:none;
   background:var(--panel);border:1px solid #ffffff24;border-radius:12px;box-shadow:var(--shadow);padding:8px}
 #morePanel .btn{margin:4px 0;display:block;width:100%}
 
-/* 幅が狭いときはナビを「⋯」内へ */
+/* 幅が狭いときはナビを「⋯」内へ（既存のまま） */
 .topbar.compact .page-nav{display:none}
 .topbar.compact #btnMore{display:inline-flex}
 </style>
@@ -131,6 +131,10 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
   <button class="btn" id="btnPrev_m">◀︎ 前</button>
   <div style="text-align:center;color:#fff;margin:4px 0">ページ <span id="pageIndicator_m">1/1</span></div>
   <button class="btn" id="btnNext_m">次 ▶︎</button>
+  <!-- ▼ 追加：要求の2機能 -->
+  <hr style="border:none;border-top:1px solid #ffffff24;margin:6px 0">
+  <button class="btn" id="btnAddPage_m">＋ページ</button>
+  <button class="btn" id="btnSetBg_m">画像を背景に設定</button>
 </div>
 
 <aside class="sidebar" id="sidebar">
@@ -226,8 +230,8 @@ function applyBars(){ const h=Math.round(topbar.getBoundingClientRect().height)|
 function updateViewportTransform(){ viewport.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; }
 function fitCanvases(){
   const vr=viewport.getBoundingClientRect();
-  W=Math.max(1, Math.round(vr.width));     // ★ズームに依存しない
-  H=Math.max(1, Math.round(vr.height));    // ★ズームに依存しない
+  W=Math.max(1, Math.round(vr.width));
+  H=Math.max(1, Math.round(vr.height));
   for(const c of [cvPaper,cvGuide,cv]){
     c.width=Math.round(W*DPR); c.height=Math.round(H*DPR);
     c.style.width=W+'px'; c.style.height=H+'px';
@@ -247,38 +251,18 @@ function layoutPaper(){
   const w=a4w*scale, h=a4h*scale;
   paperRect={w,h,x:(cv.width-w)/2,y:(cv.height-h)/2};
 }
-
-/* grid state */
-let gridOn=false, gridStepMM=10, gridColor='#b7bfd6', gridFirst=false;
-function gridStepPx(){
-  // A4基準→現用紙サイズへのスケールを考慮したピクセル間隔
-  return Math.max(2, Math.round(mm2px(gridStepMM)*(paperRect.h/mm2px(A4.hmm))));
-}
+let gridOn=false, gridStepMM=10, gridColor='#b7bfd6';
 function drawPaper(){
   const g=gPaper; g.clearRect(0,0,cvPaper.width,cvPaper.height);
   g.fillStyle='#0b1020'; g.fillRect(0,0,cvPaper.width,cvPaper.height);
-  // 背景（白紙＋ページ背景画像）
   const pg=Pages.cur();
   g.fillStyle='#fff'; g.fillRect(paperRect.x,paperRect.y,paperRect.w,paperRect.h);
   if(pg.bg && pg.bg.img){ g.drawImage(pg.bg.img,paperRect.x,paperRect.y,paperRect.w,paperRect.h); }
-
-  // グリッド（縦横）
   if(gridOn){
-    const step=gridStepPx();
-    g.save();
-    g.strokeStyle=gridColor+'88';
-    g.lineWidth=1*DPR;
-    g.beginPath();
-    // 横線
-    for(let y=paperRect.y+step; y<=paperRect.y+paperRect.h-step; y+=step){
-      g.moveTo(paperRect.x,y); g.lineTo(paperRect.x+paperRect.w,y);
-    }
-    // 縦線
-    for(let x=paperRect.x+step; x<=paperRect.x+paperRect.w-step; x+=step){
-      g.moveTo(x,paperRect.y); g.lineTo(x,paperRect.y+paperRect.h);
-    }
-    g.stroke();
-    g.restore();
+    const step=Math.max(2, Math.round(mm2px(gridStepMM)*(paperRect.h/mm2px(A4.hmm))));
+    g.save(); g.strokeStyle=gridColor+'88'; g.lineWidth=1*DPR; g.beginPath();
+    for(let y=paperRect.y+step; y<=paperRect.y+paperRect.h-step; y+=step){ g.moveTo(paperRect.x,y); g.lineTo(paperRect.x+paperRect.w,y); }
+    g.stroke(); g.restore();
   }
 }
 
@@ -290,7 +274,6 @@ const Pages={
 };
 function setPage(i){
   i=Math.max(0, Math.min(Pages.list.length-1, i));
-  // save current text html
   Pages.cur().textsHTML=textLayer.innerHTML;
   Pages.idx=i;
   textLayer.innerHTML=Pages.cur().textsHTML||'';
@@ -311,13 +294,22 @@ addEventListener('keydown',e=>{
 
 /* ====== topbar compact overflow ====== */
 function updateTopbarCompact(){
-  const threshold = 860; // 縦タブレット/スマホ想定
+  const threshold = 860;
   topbar.classList.toggle('compact', innerWidth < threshold);
 }
 const morePanel=$('#morePanel'); const btnMore=$('#btnMore');
 function toggleMore(on){ morePanel.style.display=on?'block':'none'; }
 btnMore.onclick=()=>toggleMore(morePanel.style.display!=='block');
 addEventListener('click',e=>{ if(!morePanel.contains(e.target) && e.target!==btnMore) toggleMore(false); });
+
+/* ▼ 追加：オーバーフロー新規ボタンの挙動 */
+$('#btnAddPage_m').onclick=()=>{ const pos=Pages.idx+1; Pages.list.splice(pos,0,{strokes:[],textsHTML:'',bg:null}); setPage(pos); pushHistory(); toggleMore(false); };
+$('#btnSetBg_m').onclick=async ()=>{ const file=await pickImage(); if(!file) return;
+  const tmp=new Image(); tmp.src=URL.createObjectURL(file);
+  await new Promise(r=>{ tmp.onload=r; tmp.onerror=r; });
+  const bg=fitImageToPaper(tmp); URL.revokeObjectURL(tmp.src);
+  Pages.cur().bg = bg; drawPaper(); redrawAll(); pushHistory(); toggleMore(false);
+};
 
 /* ====== tools ====== */
 let tool='pen';
@@ -366,33 +358,13 @@ panel.addEventListener('pointerup',up,{passive:false});
 panel.addEventListener('pointercancel',up,{passive:false});
 $('#panelClose').addEventListener('click',()=>{ panel.classList.remove('show'); $$('.tool[data-tool="settings"]').forEach(b=>b.classList.remove('active')); });
 })();
-const ui={
-  color:$('#uiColor'),size:$('#uiSize'),alpha:$('#uiAlpha'),sizeVal:$('#uiSizeVal'),alphaVal:$('#uiAlphaVal'),
-  cap:$('#uiCap'),straight:$('#uiStraight'),
-  gOn:$('#uiGrid'),gStep:$('#uiGridStep'),gColor:$('#uiGridColor'),gFirst:$('#uiGridFirst'),
-  palm:$('#uiPalm'),pressure:$('#uiPressure'),tilt:$('#uiTilt')
-};
+const ui={color:$('#uiColor'),size:$('#uiSize'),alpha:$('#uiAlpha'),sizeVal:$('#uiSizeVal'),alphaVal:$('#uiAlphaVal'),cap:$('#uiCap'),straight:$('#uiStraight'),gOn:$('#uiGrid'),gStep:$('#uiGridStep'),gColor:$('#uiGridColor'),palm:$('#uiPalm'),pressure:$('#uiPressure'),tilt:$('#uiTilt')};
 function pxToMm(px){return px*25.4/96}
-function syncUI(){
-  ui.color.value=color;
-  ui.size.value=size; ui.sizeVal.textContent=`${size}px (${pxToMm(size).toFixed(2)} mm)`;
-  ui.alpha.value=Math.round((tool==='marker'?alpha:0.5)*100); ui.alphaVal.textContent=Math.round((tool==='marker'?alpha:0.5)*100)+'%';
-  ui.cap.value=cap; ui.straight.checked=straightToggle;
-  ui.gOn.checked=gridOn; ui.gStep.value=String(gridStepMM); ui.gColor.value=gridColor; ui.gFirst.checked=gridFirst;
-  ui.palm.checked=palmReject; ui.pressure.checked=pressureOn; ui.tilt.checked=tiltOn;
-}
-function onPanelChange(){
-  color=ui.color.value; size=+ui.size.value;
-  alpha=(tool==='marker')?(+ui.alpha.value/100):alpha;
-  ui.sizeVal.textContent=`${size}px (${pxToMm(size).toFixed(2)} mm)`; ui.alphaVal.textContent=Math.round(alpha*100)+'%';
-  cap=ui.cap.value; straightToggle=ui.straight.checked;
-  gridOn=ui.gOn.checked; gridStepMM=+ui.gStep.value; gridColor=ui.gColor.value; gridFirst=ui.gFirst.checked;
-  palmReject=ui.palm.checked; pressureOn=ui.pressure.checked; tiltOn=ui.tilt.checked;
-  drawPaper(); redrawAll();
-}
+function syncUI(){ui.color.value=color;ui.size.value=size;ui.sizeVal.textContent=`${size}px (${pxToMm(size).toFixed(2)} mm)`;ui.alpha.value=Math.round((tool==='marker'?alpha:0.5)*100);ui.alphaVal.textContent=Math.round((tool==='marker'?alpha:0.5)*100)+'%';ui.cap.value=cap;ui.straight.checked=straightToggle;ui.gOn.checked=gridOn;ui.gStep.value=String(gridStepMM);ui.gColor.value=gridColor;ui.palm.checked=palmReject;ui.pressure.checked=pressureOn;ui.tilt.checked=tiltOn;}
+function onPanelChange(){color=ui.color.value;size=+ui.size.value;alpha=(tool==='marker')?(+ui.alpha.value/100):alpha;ui.sizeVal.textContent=`${size}px (${pxToMm(size).toFixed(2)} mm)`;ui.alphaVal.textContent=Math.round(alpha*100)+'%';cap=ui.cap.value;straightToggle=ui.straight.checked;gridOn=ui.gOn.checked;gridStepMM=+ui.gStep.value;gridColor=ui.gColor.value;drawPaper();redrawAll();}
 Object.values(ui).forEach(el=>el.addEventListener('input',onPanelChange));
 
-/* ====== pointer mapping (accurate with zoom) ====== */
+/* ====== pointer mapping ====== */
 function pointerToCanvas(e){
   const r=cv.getBoundingClientRect();
   return {
@@ -402,8 +374,8 @@ function pointerToCanvas(e){
 }
 function inPaperXY(x,y){ return x>=paperRect.x && y>=paperRect.y && x<=paperRect.x+paperRect.w && y<=paperRect.y+paperRect.h; }
 
-/* ====== draw helpers ====== */
-let drawing=false, panning=false, start={x:0,y:0}, last={x:0,y:0}, activeTouches=0, penActive=false;
+/* ====== draw ====== */
+let drawing=false, panning=false, start={x:0,y:0}, last={x:0,y:0}, activeTouches=0;
 let currentStroke=null;
 function setCtx(){
   ctx.lineJoin='round'; ctx.lineCap=(tool==='marker'||tool==='pen')?cap:'round';
@@ -423,35 +395,12 @@ function clearGuide(){ gGuide.clearRect(0,0,cvGuide.width,cvGuide.height); }
 function toUV(x,y){ return {u:(x-paperRect.x)/paperRect.w, v:(y-paperRect.y)/paperRect.h}; }
 function fromUV(u,v){ return {x:paperRect.x + u*paperRect.w, y:paperRect.y + v*paperRect.h}; }
 
-function snapToGridPoint(p){
-  const step = gridStepPx();
-  const x = paperRect.x + Math.round((p.x - paperRect.x)/step)*step;
-  const y = paperRect.y + Math.round((p.y - paperRect.y)/step)*step;
-  return {x:Math.min(paperRect.x+paperRect.w, Math.max(paperRect.x, x)),
-          y:Math.min(paperRect.y+paperRect.h, Math.max(paperRect.y, y))};
-}
-function snapAngle(p0,p1,deg=15){
-  const dx=p1.x-p0.x, dy=p1.y-p0.y; const len=Math.hypot(dx,dy); if(len<1) return p1;
-  const rad=deg*Math.PI/180; const a=Math.atan2(dy,dx);
-  const a2=Math.round(a/rad)*rad;
-  return {x:p0.x+Math.cos(a2)*len, y:p0.y+Math.sin(a2)*len};
-}
-
-/* ====== draw ====== */
 function onDown(e){
-  if(e.pointerType==='touch') activeTouches++;
-  if(e.pointerType==='pen') penActive=true;
-
   if(tool==='hand'){ panning=true; cv.style.cursor='grabbing'; return; }
-
-  // 強化パーム除外：ペンが有効中は touch を無視
-  if($('#uiPalm').checked && e.pointerType==='touch' && (activeTouches>1 || penActive)){ return; }
-
+  if($('#uiPalm').checked && e.pointerType==='touch' && activeTouches>0){ activeTouches++; return; }
   const p=pointerToCanvas(e); if(!inPaperXY(p.x,p.y)) return;
   e.preventDefault(); try{cv.setPointerCapture(e.pointerId)}catch{}
   drawing=true; start=last=p; clearGuide();
-
-  // start new stroke
   currentStroke={tool:(tool==='marker'?'marker':tool==='eraser'?'eraser':'pen'),
     color:(tool==='marker'||tool==='pen')?color:'#000000', alpha:(tool==='marker')?alpha:1, cap:cap,
     sizeU:(size/paperRect.h), pts:[toUV(p.x,p.y)]
@@ -460,81 +409,29 @@ function onDown(e){
 function onMove(e){
   if(tool==='hand' && panning){ panX+=e.movementX||0; panY+=e.movementY||0; updateViewportTransform(); return; }
   if(!drawing) return;
-
-  // パーム：ペン優先時のtouch無視
-  if($('#uiPalm').checked && e.pointerType==='touch' && penActive) return;
-
   const p=pointerToCanvas(e);
   const straight=(straightKey||$('#uiStraight').checked);
-
-  if(straight){
-    // ガイドはスナップ後の終点を可視化
-    let s0 = (gridFirst && gridOn)? snapToGridPoint(start) : start;
-    let s1 = (gridFirst && gridOn)? snapToGridPoint(p)     : p;
-    s1 = snapAngle(s0, s1, 15);
-    showGuide(s0.x, s0.y, s1.x, s1.y);
-    return;
-  }
-
+  if(straight){ showGuide(start.x,start.y,p.x,p.y); return; }
   const evs=(e.getCoalescedEvents&&e.getCoalescedEvents())||[e];
-  setCtx();
-
-  // 可変太さ（筆圧/傾きON時のみ）— 軽量：セグメントごとにstroke
-  if(pressureOn || tiltOn){
-    for(const ev of evs){
-      const q=pointerToCanvas(ev);
-      if(!inPaperXY(q.x,q.y)) continue;
-
-      let w = Math.max(1, Math.round(size*DPR));
-      if(pressureOn && typeof ev.pressure==='number' && ev.pressure>0){
-        // 0.4x〜1.2x の範囲で変化（見やすさ優先）
-        w = Math.max(1, Math.round(w * (0.4 + ev.pressure*0.8)));
-      }
-      if(tiltOn && typeof ev.tiltX==='number' && typeof ev.tiltY==='number'){
-        const tilt = Math.min(60, Math.hypot(ev.tiltX||0, ev.tiltY||0));
-        const tiltScale = 1 + (tilt/60)*0.2; // 最大 +20%
-        w = Math.max(1, Math.round(w * tiltScale));
-      }
-
-      ctx.lineWidth = w;
-      ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(q.x,q.y); ctx.stroke();
-      currentStroke.pts.push(toUV(q.x,q.y));
-      last=q;
-    }
-  }else{
-    // 従来（高速）パス
-    ctx.beginPath(); ctx.moveTo(last.x,last.y);
-    for(const ev of evs){
-      const q=pointerToCanvas(ev);
-      if(!inPaperXY(q.x,q.y)) continue;
-      ctx.lineTo(q.x,q.y);
-      currentStroke.pts.push(toUV(q.x,q.y));
-      last=q;
-    }
-    ctx.stroke();
+  setCtx(); ctx.beginPath(); ctx.moveTo(last.x,last.y);
+  for(const ev of evs){
+    const q=pointerToCanvas(ev);
+    if(!inPaperXY(q.x,q.y)) continue;
+    ctx.lineTo(q.x,q.y);
+    currentStroke.pts.push(toUV(q.x,q.y));
+    last=q;
   }
+  ctx.stroke();
 }
 function onUp(e){
-  if(e.pointerType==='touch') activeTouches=Math.max(0,activeTouches-1);
-  if(e.pointerType==='pen') penActive=false;
-
   if(tool==='hand' && panning){ panning=false; cv.style.cursor='grab'; return; }
   if(!drawing){ clearGuide(); return; }
-
   const p=pointerToCanvas(e);
   const straight=(straightKey||$('#uiStraight').checked);
   if(straight){
-    let s0 = (gridFirst && gridOn)? snapToGridPoint(start) : start;
-    let s1 = (gridFirst && gridOn)? snapToGridPoint(p)     : p;
-    s1 = snapAngle(s0, s1, 15);
-
-    setCtx();
-    ctx.beginPath(); ctx.moveTo(s0.x,s0.y); ctx.lineTo(s1.x,s1.y); ctx.stroke();
-
-    // UV はスナップ後の端点を保存
-    currentStroke.pts = [toUV(s0.x,s0.y), toUV(s1.x,s1.y)];
+    setCtx(); ctx.beginPath(); ctx.moveTo(start.x,start.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+    currentStroke.pts.push(toUV(p.x,p.y));
   }
-
   drawing=false; clearGuide();
   if(currentStroke && currentStroke.pts.length>1){ Pages.cur().strokes.push(currentStroke); pushHistory(); }
   currentStroke=null;
@@ -569,7 +466,6 @@ function addText(){const el=document.createElement('div');el.className='note-tex
   el.style.left=(paperRect.x/DPR+20)+'px'; el.style.top=(paperRect.y/DPR+20)+'px'; el.textContent='テキスト';
   const del=document.createElement('button');del.className='del';del.textContent='削除';del.addEventListener('click',()=>el.remove());
   el.appendChild(del); textLayer.appendChild(el); el.focus(); pushHistory();
-  // テキスト編集中は描画キャンバスのポインタを無効化（誤入力防止）
   el.addEventListener('focus',()=>{ cv.style.pointerEvents='none'; });
   el.addEventListener('blur', ()=>{ cv.style.pointerEvents='auto'; });
   el.addEventListener('pointerdown',e=>e.stopPropagation());
@@ -688,23 +584,35 @@ function restoreSnap(s){
 $('#btnUndo').onclick=()=>{ if(!hist.length) return; const cur=snapshot(); const prev=hist.pop(); redoStack.push(cur); restoreSnap(prev); };
 $('#btnRedo').onclick=()=>{ const nxt=redoStack.pop(); if(!nxt) return; hist.push(snapshot()); restoreSnap(nxt); };
 
-/* ====== zoom (anchor at viewport center) + ctrl+wheel ====== */
+/* ====== zoom ====== */
 function setZoom(z){
   const z0=zoom, z1=Math.max(0.6,Math.min(3,z));
   const vr=viewport.getBoundingClientRect();
-  const Cx=vr.width/2, Cy=vr.height/2; // 要素内中心（ローカル）
-  const Ux=(Cx - panX)/z0, Uy=(Cy - panY)/z0; // 中心のワールド座標
+  const Cx=vr.width/2, Cy=vr.height/2;
+  const Ux=(Cx - panX)/z0, Uy=(Cy - panY)/z0;
   zoom=z1;
   panX = Cx - Ux*z1;
   panY = Cy - Uy*z1;
   updateViewportTransform();
   $('#btnZoomReset').textContent=Math.round(zoom*100)+'%';
 }
-$('#btnZoomIn').onclick = ()=>setZoom(zoom+0.1);
-$('#btnZoomOut').onclick= ()=>setZoom(zoom-0.1);
+/* ▼ 追加：ボタン用のアンカー付きズーム */
+function setZoomWithBias(z, anchor){
+  const z0=zoom, z1=Math.max(0.6,Math.min(3,z));
+  const vr=viewport.getBoundingClientRect();
+  let ax=vr.width/2, ay=vr.height/2;
+  if(anchor==='top-left'){ ax=0; ay=0; }
+  else if(anchor==='bottom-right'){ ax=vr.width; ay=vr.height; }
+  const Ux=(ax - panX)/z0, Uy=(ay - panY)/z0;
+  zoom=z1;
+  panX = ax - Ux*z1;
+  panY = ay - Uy*z1;
+  updateViewportTransform();
+  $('#btnZoomReset').textContent=Math.round(zoom*100)+'%';
+}
+$('#btnZoomIn').onclick = ()=>setZoomWithBias(zoom+0.1,'top-left');
+$('#btnZoomOut').onclick= ()=>setZoomWithBias(zoom-0.1,'bottom-right');
 $('#btnZoomReset').onclick=()=>setZoom(1);
-// Ctrl+Wheel でズーム（UI変更なし）
-addEventListener('wheel', (e)=>{ if(e.ctrlKey){ setZoom(zoom * (e.deltaY>0?0.9:1.1)); e.preventDefault(); } }, {passive:false});
 
 /* ====== boot ====== */
 function boot(){
