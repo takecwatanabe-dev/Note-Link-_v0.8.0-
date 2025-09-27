@@ -412,4 +412,150 @@ boot();
 })();
 </script>
 <!-- === /HF6m === -->
+<!-- === HF6e-LOCK: 挙動ロールバック（UI変更なし・単一スニペット） === -->
+<script>
+(function(){
+  // 0) ビルド表記だけHF6eへ（見た目は変えない／テキストだけ）
+  try{
+    const v=document.querySelector('#verText');
+    const b=document.querySelector('#buildText');
+    if(v) v.textContent='NOTE LINK — v0.8.0 / B-REL6-HF6e';
+    if(b) b.textContent='build: HF6e-lock';
+    document.title='NOTE LINK — v0.8.0 / B-REL6-HF6e';
+  }catch(_){}
+
+  // 1) サイドバー △（トグル）が無ければ復活（UIは既存スタイルに従う）
+  (function(){
+    const sidebar=document.querySelector('.sidebar');
+    if(!sidebar) return;
+    const rail=sidebar.querySelector('.rail')||sidebar;
+    if(rail.querySelector('#btnSidebarToggle,[data-tool="toggle"]')) return;
+    const btn=document.createElement('button');
+    btn.id='btnSidebarToggle'; btn.dataset.tool='toggle'; btn.className='tool';
+    btn.title='ツールバーの開閉'; btn.setAttribute('data-tip','ツールバーの開閉');
+    btn.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l8 6-8 6"/></svg>';
+    rail.insertBefore(btn, rail.firstChild);
+    btn.addEventListener('click',e=>{ e.stopPropagation(); sidebar.classList.toggle('collapsed'); }, {passive:true});
+  })();
+
+  // 2) 入力面：HF6eの安定仕様に固定
+  //   - キャンバスは「一番大きいcanvas」だけを入力対象に
+  //   - マーカーは曲線/直線とも α=0.5（window.markerAlpha優先）
+  //   - 直線は Shift＋ドラッグ時のみ本描画1回（プレビューはオーバーレイ）
+  (function(){
+    const dpr=Math.max(1,window.devicePixelRatio||1);
+    const cvs=Array.from(document.querySelectorAll('canvas'));
+    if(!cvs.length) return;
+    const main=cvs.reduce((a,b)=>{
+      const ra=a.getBoundingClientRect(), rb=b.getBoundingClientRect();
+      return (ra.width*ra.height)>=(rb.width*rb.height)?a:b;
+    });
+    const ctx=main.getContext('2d');
+
+    // 2-1) strokeを軽ラップ：マーカーは常に同濃度
+    const DEF_ALPHA=0.5;
+    if(!CanvasRenderingContext2D.prototype.__hf6eLock){
+      const _stroke=CanvasRenderingContext2D.prototype.stroke;
+      CanvasRenderingContext2D.prototype.stroke=function(){
+        const area=this.canvas?this.canvas.width*this.canvas.height:0;
+        if(area<200000) return _stroke.call(this); // 小さなUI用は除外
+        // マーカー判定：ツール名 or 太さ>=10px or 黄系
+        const isMarker=(()=>{
+          if(typeof window.currentTool==='string' && /marker|マーカー/i.test(window.currentTool)) return true;
+          if(typeof window.tool==='string' && /marker|マーカー/i.test(window.tool)) return true;
+          const px=(this.lineWidth||0)/dpr;
+          if(px>=10) return true;
+          const st=String(this.strokeStyle||'').toLowerCase();
+          return /#ff0|#ffff00|rgb\(\s*255\s*,\s*255\s*,\s*0\s*\)/.test(st);
+        })();
+        const saved=this.globalAlpha;
+        if(this.globalCompositeOperation!=='destination-out'){
+          this.globalAlpha = isMarker ? (typeof window.markerAlpha==='number'?window.markerAlpha:DEF_ALPHA) : 1.0;
+        }
+        try{ return _stroke.call(this); }
+        finally{ this.globalAlpha=saved; }
+      };
+      CanvasRenderingContext2D.prototype.__hf6eLock=true;
+    }
+
+    // 2-2) 直線プレビュー（Shift中だけ overlay、離したら本描画1回）
+    let ov=document.getElementById('nl-hf6e-ov');
+    if(!ov){
+      ov=document.createElement('canvas');
+      ov.id='nl-hf6e-ov';
+      ov.style.cssText='position:absolute;inset:0;pointer-events:none;width:100%;height:100%';
+      main.parentNode.appendChild(ov);
+    }
+    const octx=ov.getContext('2d');
+    const sync=()=>{
+      const r=main.getBoundingClientRect();
+      const w=Math.max(2,Math.floor(r.width*dpr));
+      const h=Math.max(2,Math.floor(r.height*dpr));
+      if(ov.width!==w) ov.width=w;
+      if(ov.height!==h) ov.height=h;
+      octx.lineCap=octx.lineJoin='round';
+    };
+    if(typeof ResizeObserver!=='undefined') new ResizeObserver(sync).observe(main); sync();
+
+    let drawing=false, shifted=false, sx=0, sy=0, lx=0, ly=0;
+    const pos=e=>{ const r=main.getBoundingClientRect(); return {x:(e.clientX-r.left)*dpr, y:(e.clientY-r.top)*dpr}; };
+    const copyStyle=(from,to)=>{
+      to.globalCompositeOperation='source-over';
+      to.strokeStyle=from.strokeStyle||'#000';
+      to.lineWidth=from.lineWidth||2*dpr;
+      const px=(to.lineWidth||0)/dpr;
+      const st=String(to.strokeStyle||'').toLowerCase();
+      const isMarker = px>=10 || /#ff0|#ffff00|rgb\(\s*255\s*,\s*255\s*,\s*0\s*\)/.test(st) ||
+                       (typeof window.currentTool==='string' && /marker|マーカー/i.test(window.currentTool));
+      to.globalAlpha = isMarker ? (typeof window.markerAlpha==='number'?window.markerAlpha:DEF_ALPHA) : 1.0;
+    };
+
+    // 既存のpointer系が多重でも、Shift中はここで奪わず描画だけ重ねて最終結果を本体に残す
+    main.addEventListener('pointerdown', e=>{
+      shifted=!!e.shiftKey; if(!shifted) return;
+      e.preventDefault(); e.stopPropagation();
+      const p=pos(e); sx=lx=p.x; sy=ly=p.y; drawing=true; octx.clearRect(0,0,ov.width,ov.height);
+    }, {passive:false});
+    main.addEventListener('pointermove', e=>{
+      if(!drawing||!shifted) return;
+      e.preventDefault(); e.stopPropagation();
+      const p=pos(e); lx=p.x; ly=p.y; octx.clearRect(0,0,ov.width,ov.height);
+      copyStyle(ctx,octx); octx.beginPath(); octx.moveTo(sx,sy); octx.lineTo(lx,ly); octx.stroke();
+    }, {passive:false});
+    const commit=()=>{
+      copyStyle(ctx,ctx); ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(lx,ly); ctx.stroke();
+      octx.clearRect(0,0,ov.width,ov.height);
+    };
+    const end=e=>{
+      if(!shifted) return;
+      e && (e.preventDefault(), e.stopPropagation());
+      if(drawing) commit(); drawing=false; shifted=false;
+    };
+    main.addEventListener('pointerup', end, {passive:true});
+    main.addEventListener('pointercancel', end, {passive:true});
+    main.addEventListener('pointerleave', end, {passive:true});
+  })();
+
+  // 3) 余計なグローバルハンドラの“多重バインド”を抑止（HF6e安定化）
+  //   document/window 直下の pointermove/rawupdate には触れない方針
+  //   ここでは何もしない（＝UI非変更）。将来の多重登録検出だけ仕込む。
+  (function(){
+    const w=window;
+    const tag=(t)=>`[HF6e-lock:${t}]`;
+    const origAdd=w.addEventListener;
+    if(!origAdd.__hf6eWrapped){
+      w.addEventListener=function(type, listener, opts){
+        if((/pointermove|pointerrawupdate/i).test(type) && (this===window||this===document)){
+          // 何もしない：登録は許可するがログだけ（デバッグ用。実害なし）
+          // console.debug(tag('skip-global'), type, listener);
+        }
+        return origAdd.call(this, type, listener, opts);
+      };
+      w.addEventListener.__hf6eWrapped=true;
+    }
+  })();
+})();
+</script>
+<!-- === /HF6e-LOCK === -->
+
 </body></html>
