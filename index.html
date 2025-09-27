@@ -3,10 +3,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NOTE LINK — v0.8.0 / B-REL6-HF6j</title>
-<!-- build note: 2025-09-27T20:12:00+09:00 / HF6j-patch-min2
-  - Show "⋯" overflow button at all times (tablet portrait friendly)
-  - Overflow panel actions: Prev / Next / +Page / Set Image as Background
-  - Zoom buttons only: + biases to top-left, - biases to bottom-right
+<!-- build note: 2025-09-27T20:34:00+09:00 / HF6j-patch-min3
+  - Zoom buttons (+/-) use center anchor (no drift on zoom-out)
+  - Header: safe-area top padding + horizontal scroll to avoid being hidden
+  - Added visualViewport/orientation listeners to re-measure header height
   - Everything else untouched
 -->
 <style>
@@ -22,7 +22,11 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);
 header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topbar-h);
   display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#fff;
   background:linear-gradient(0deg,rgba(42,84,255,.16),rgba(42,84,255,.16)),var(--accent);
-  border-bottom:1px solid #ffffff26; white-space:nowrap; writing-mode:horizontal-tb; text-orientation:mixed}
+  border-bottom:1px solid #ffffff26; white-space:nowrap; writing-mode:horizontal-tb; text-orientation:mixed;
+  /* ▼ 追加：隠れ防止 */
+  padding-top: env(safe-area-inset-top);
+  overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;
+}
 .topbar .sp{flex:1;min-width:12px}
 .topbar .btn{height:28px;padding:0 10px;border-radius:10px;background:#ffffff33;
   border:1px solid #ffffff38;color:#fff;display:inline-flex;align-items:center}
@@ -78,7 +82,7 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 /* ページナビ（最小追加） */
 .page-nav{display:inline-flex;gap:6px;align-items:center}
 #pageIndicator{min-width:48px;text-align:center}
-/* ▼ 修正：常時表示に変更（タブレット縦で必ず見える） */
+/* 「⋯」は前パッチ同様、常時表示 */
 #btnMore{display:inline-flex}
 #morePanel{position:fixed;right:10px;top:calc(var(--topbar-h) + 6px);z-index:3000;display:none;
   background:var(--panel);border:1px solid #ffffff24;border-radius:12px;box-shadow:var(--shadow);padding:8px}
@@ -102,7 +106,7 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
   <button class="btn" id="btnLoad">読み込み</button>
   <button class="btn" id="btnSave">保存</button>
 
-  <!-- ズーム（既存） -->
+  <!-- ズーム（中央基準） -->
   <button class="btn" id="btnZoomOut">−</button>
   <button class="btn" id="btnZoomReset">100%</button>
   <button class="btn" id="btnZoomIn">＋</button>
@@ -121,7 +125,7 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
     <button class="btn" id="btnNext">次 ▶︎</button>
   </span>
 
-  <!-- コンパクト用「⋯」 -->
+  <!-- コンパクト用「⋯」（常時表示） -->
   <button class="btn" id="btnMore">⋯</button>
   <span class="build" id="buildText">build: HF6j</span>
 </header>
@@ -131,7 +135,6 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
   <button class="btn" id="btnPrev_m">◀︎ 前</button>
   <div style="text-align:center;color:#fff;margin:4px 0">ページ <span id="pageIndicator_m">1/1</span></div>
   <button class="btn" id="btnNext_m">次 ▶︎</button>
-  <!-- ▼ 追加：要求の2機能 -->
   <hr style="border:none;border-top:1px solid #ffffff24;margin:6px 0">
   <button class="btn" id="btnAddPage_m">＋ページ</button>
   <button class="btn" id="btnSetBg_m">画像を背景に設定</button>
@@ -224,7 +227,7 @@ const textLayer=$('#textLayer');
 $('#verText').textContent='NOTE LINK — v0.8.0 / B-REL6-HF6j';
 $('#buildText').textContent='build: HF6j';
 
-/* ====== layout (fix: canvas size independent of zoom) ====== */
+/* ====== layout ====== */
 let zoom=1, panX=0, panY=0, W=0, H=0;
 function applyBars(){ const h=Math.round(topbar.getBoundingClientRect().height)||44; document.documentElement.style.setProperty('--topbar-h',h+'px'); }
 function updateViewportTransform(){ viewport.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; }
@@ -239,6 +242,12 @@ function fitCanvases(){
   layoutPaper(); drawPaper(); redrawAll();
 }
 addEventListener('resize',()=>{applyBars(); fitCanvases(); updateTopbarCompact();});
+/* ▼ 追加：アドレスバーの出入り／向き変更でも再計測 */
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', ()=>{ applyBars(); });
+}
+addEventListener('orientationchange', ()=>{ applyBars(); });
+
 applyBars();
 
 /* ====== A4 paper ====== */
@@ -266,7 +275,7 @@ function drawPaper(){
   }
 }
 
-/* ====== pages (internal only) ====== */
+/* ====== pages ====== */
 const Pages={
   list:[{strokes:[],textsHTML:'',bg:null}],
   idx:0,
@@ -302,7 +311,7 @@ function toggleMore(on){ morePanel.style.display=on?'block':'none'; }
 btnMore.onclick=()=>toggleMore(morePanel.style.display!=='block');
 addEventListener('click',e=>{ if(!morePanel.contains(e.target) && e.target!==btnMore) toggleMore(false); });
 
-/* ▼ 追加：オーバーフロー新規ボタンの挙動 */
+/* 追加：オーバーフローの2機能（前パッチ据え置き） */
 $('#btnAddPage_m').onclick=()=>{ const pos=Pages.idx+1; Pages.list.splice(pos,0,{strokes:[],textsHTML:'',bg:null}); setPage(pos); pushHistory(); toggleMore(false); };
 $('#btnSetBg_m').onclick=async ()=>{ const file=await pickImage(); if(!file) return;
   const tmp=new Image(); tmp.src=URL.createObjectURL(file);
@@ -491,7 +500,7 @@ $('#btnPng').onclick=()=>composite().toBlob(b=>{const a=document.createElement('
 $('#btnPrint').onclick=()=>window.print();
 $('#btnShare').onclick=()=>{composite().toBlob(async b=>{const f=new File([b],'note.png',{type:'image/png'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Note Link'})}catch(e){}}else{const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='note-link.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),800)}})};
 
-/* ====== save/load (JSON, pages+bg) ====== */
+/* ====== save/load ====== */
 let fileHandle=null;
 function exportJSON(){
   return JSON.stringify({
@@ -538,7 +547,7 @@ async function doLoad(){
 }
 $('#btnSave').onclick=doSave; $('#btnLoad').onclick=doLoad;
 
-/* ====== image add/insert (fit into paper) ====== */
+/* ====== image add/insert ====== */
 async function pickImage(){
   try{
     if('showOpenFilePicker' in window){
@@ -584,34 +593,21 @@ function restoreSnap(s){
 $('#btnUndo').onclick=()=>{ if(!hist.length) return; const cur=snapshot(); const prev=hist.pop(); redoStack.push(cur); restoreSnap(prev); };
 $('#btnRedo').onclick=()=>{ const nxt=redoStack.pop(); if(!nxt) return; hist.push(snapshot()); restoreSnap(nxt); };
 
-/* ====== zoom ====== */
+/* ====== zoom（中央基準で統一） ====== */
 function setZoom(z){
   const z0=zoom, z1=Math.max(0.6,Math.min(3,z));
   const vr=viewport.getBoundingClientRect();
-  const Cx=vr.width/2, Cy=vr.height/2;
-  const Ux=(Cx - panX)/z0, Uy=(Cy - panY)/z0;
+  const Cx=vr.width/2, Cy=vr.height/2;           // 要素内の中心
+  const Ux=(Cx - panX)/z0, Uy=(Cy - panY)/z0;    // 中心のワールド座標
   zoom=z1;
   panX = Cx - Ux*z1;
   panY = Cy - Uy*z1;
   updateViewportTransform();
   $('#btnZoomReset').textContent=Math.round(zoom*100)+'%';
 }
-/* ▼ 追加：ボタン用のアンカー付きズーム */
-function setZoomWithBias(z, anchor){
-  const z0=zoom, z1=Math.max(0.6,Math.min(3,z));
-  const vr=viewport.getBoundingClientRect();
-  let ax=vr.width/2, ay=vr.height/2;
-  if(anchor==='top-left'){ ax=0; ay=0; }
-  else if(anchor==='bottom-right'){ ax=vr.width; ay=vr.height; }
-  const Ux=(ax - panX)/z0, Uy=(ay - panY)/z0;
-  zoom=z1;
-  panX = ax - Ux*z1;
-  panY = ay - Uy*z1;
-  updateViewportTransform();
-  $('#btnZoomReset').textContent=Math.round(zoom*100)+'%';
-}
-$('#btnZoomIn').onclick = ()=>setZoomWithBias(zoom+0.1,'top-left');
-$('#btnZoomOut').onclick= ()=>setZoomWithBias(zoom-0.1,'bottom-right');
+/* ▼ ボタンは中央基準の setZoom を直接呼ぶ（ドリフト無し） */
+$('#btnZoomIn').onclick = ()=>setZoom(zoom+0.1);
+$('#btnZoomOut').onclick= ()=>setZoom(zoom-0.1);
 $('#btnZoomReset').onclick=()=>setZoom(1);
 
 /* ====== boot ====== */
