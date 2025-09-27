@@ -2,7 +2,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NOTE LINK — v0.8.0 / B-REL6-HF6j</title>
+<title>NOTE LINK — v0.8.0 / B-REL6-K</title>
 <style>
 :root{
   --ink:#e6f1ff;--ink-dim:#9bd6e9;--bg:#0b1020;--panel:#101827;--accent:#3f78ff;
@@ -14,8 +14,7 @@ html,body{
   height:100%;margin:0;background:var(--bg);color:var(--ink);
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
   -webkit-user-select:none;user-select:none;
-  /* ページ全体の横スクロールは禁止（ヘッダ内のみ横スクロール） */
-  overflow-x:hidden;
+  overflow-x:hidden; /* ページ全体の横スクロールは禁止 */
 }
 header.topbar{
   position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topbar-h);
@@ -23,20 +22,21 @@ header.topbar{
   background:linear-gradient(0deg,rgba(42,84,255,.16),rgba(42,84,255,.16)),var(--accent);
   border-bottom:1px solid #ffffff26; white-space:nowrap;
   padding-top:env(safe-area-inset-top);
-  /* ヘッダ自体ははみ出さない */
-  overflow:hidden;
+  overflow:hidden; /* ヘッダ自体ははみ出さない */
 }
 .topbar .brand{flex:0 0 auto;font-weight:700}
 .topbar .rail-scroll{
-  /* 真ん中：横スクロール可能なレール（中のボタンを横にスライド） */
+  /* 中央：横スクロール可能なレール（PC/タブレット/スマホで共通） */
   flex:1 1 auto; min-width:40px;
   overflow-x:auto; overflow-y:hidden;
   display:flex; align-items:center; gap:8px;
   white-space:nowrap;
   -webkit-overflow-scrolling:touch;
   scrollbar-width:none;
+  cursor:grab; user-select:none; -webkit-user-select:none;
 }
 .topbar .rail-scroll::-webkit-scrollbar{display:none}
+.topbar .rail-scroll.dragging{ cursor:grabbing }
 .topbar .right-fixed{flex:0 0 auto;display:flex;align-items:center;gap:8px}
 .topbar .btn{height:28px;padding:0 10px;border-radius:10px;background:#ffffff33;
   border:1px solid #ffffff38;color:#fff;display:inline-flex;align-items:center}
@@ -100,10 +100,10 @@ header.topbar{
 </head>
 <body>
 <header class="topbar" id="topbar">
-  <!-- 左：固定表示（常に見える） -->
-  <div class="brand"><strong id="verText">NOTE LINK — v0.8.0 / B-REL6-HF6j</strong></div>
+  <!-- 左：固定表示 -->
+  <div class="brand"><strong id="verText">NOTE LINK — V0.8.0 / B-REL6-K</strong></div>
 
-  <!-- 中央：横スクロール可能なレール（指でスライド） -->
+  <!-- 中央：横スクロール可能なレール -->
   <div class="rail-scroll" id="railScroll">
     <button class="btn" id="btnImgAppend">画像追加</button>
     <button class="btn" id="btnImgInsert">画像挿入</button>
@@ -126,10 +126,10 @@ header.topbar{
       <button class="btn" id="btnNext">次 ▶︎</button>
     </span>
 
-    <span class="build" id="buildText">build: HF6j</span>
+    <span class="build" id="buildText">BUILD: HF6K</span>
   </div>
 
-  <!-- 右：固定（常に見える） -->
+  <!-- 右：固定 -->
   <div class="right-fixed">
     <button class="btn" id="btnMore">⋯</button>
   </div>
@@ -229,8 +229,8 @@ const cv=$('#paint'), ctx=cv.getContext('2d',{alpha:true});
 const textLayer=$('#textLayer');
 
 /* version */
-$('#verText').textContent='NOTE LINK — v0.8.0 / B-REL6-HF6j';
-$('#buildText').textContent='build: HF6j';
+$('#verText').textContent='NOTE LINK — V0.8.0 / B-REL6-K';
+$('#buildText').textContent='BUILD: HF6K';
 
 /* layout */
 let zoom=1, panX=0, panY=0, W=0, H=0;
@@ -495,20 +495,79 @@ $('#btnShare').onclick=()=>{composite().toBlob(async b=>{const f=new File([b],'n
 let fileHandle=null;
 function exportJSON(){
   return JSON.stringify({
-    v:'HF6j',
+    v:'HF6k',
     pages: Pages.list.map(pg=>({strokes:pg.strokes||[],textsHTML:pg.textsHTML||'', bg:pg.bg && pg.bg.dataURL ? {dataURL:pg.bg.dataURL}:null})),
     idx: Pages.idx,
     grid:{on:gridOn,stepMM:gridStepMM,color:gridColor}
   });
 }
-async function doSave(){ /* 省略（元のまま） */ }
-async function doLoad(){ /* 省略（元のまま） */ }
+async function doSave(){
+  const blob=new Blob([exportJSON()],{type:'application/json'});
+  try{
+    if('showSaveFilePicker' in window){
+      if(!fileHandle){
+        fileHandle=await window.showSaveFilePicker({suggestedName:'note-link.json',types:[{description:'Note Link JSON',accept:{'application/json':['.json']}}]});
+      }
+      const w=await fileHandle.createWritable(); await w.write(blob); await w.close();
+    }else{
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='note-link.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),800);
+    }
+  }catch(e){}
+}
+async function doLoad(){
+  try{
+    let f=null;
+    if('showOpenFilePicker' in window){
+      const [h]=await window.showOpenFilePicker({types:[{description:'Note Link JSON',accept:{'application/json':['.json']}}]});
+      f=await h.getFile(); fileHandle=h;
+    }else{
+      const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
+      f=await new Promise(res=>{ inp.onchange=()=>res(inp.files[0]); inp.click(); });
+    }
+    const txt=await f.text(); const data=JSON.parse(txt);
+    Pages.list=(data.pages||[]).map(pg=>{ const entry={strokes:pg.strokes||[],textsHTML:pg.textsHTML||'',bg:null};
+      if(pg.bg && pg.bg.dataURL){ const img=new Image(); img.src=pg.bg.dataURL; entry.bg={dataURL:pg.bg.dataURL,img}; }
+      return entry;
+    });
+    if(!Pages.list.length) Pages.list=[{strokes:[],textsHTML:'',bg:null}];
+    Pages.idx=Math.max(0,Math.min(Pages.list.length-1,data.idx||0));
+    gridOn=!!data.grid?.on; gridStepMM=data.grid?.stepMM||10; gridColor=data.grid?.color||'#b7bfd6';
+    textLayer.innerHTML=Pages.cur().textsHTML||'';
+    updatePageIndicator(); drawPaper(); redrawAll(); pushHistory();
+  }catch(e){}
+}
 $('#btnSave').onclick=doSave; $('#btnLoad').onclick=doLoad;
 
 /* image add/insert */
-async function pickImage(){ /* 省略（元のまま） */ }
-function fitImageToPaper(img){ /* 省略（元のまま） */ }
-async function addImage(mode){ /* 省略（元のまま） */ }
+async function pickImage(){
+  try{
+    if('showOpenFilePicker' in window){
+      const [h]=await window.showOpenFilePicker({types:[{description:'JPEG/PNG',accept:{'image/*':['.jpg','.jpeg','.png']}}]});
+      return await h.getFile();
+    }else{
+      const inp=document.createElement('input'); inp.type='file'; inp.accept='image/jpeg,image/png';
+      return await new Promise(res=>{ inp.onchange=()=>res(inp.files[0]); inp.click(); });
+    }
+  }catch(e){ return null; }
+}
+function fitImageToPaper(img){
+  const off=document.createElement('canvas'); off.width=Math.round(paperRect.w); off.height=Math.round(paperRect.h);
+  const o=off.getContext('2d');
+  const sc=Math.min(off.width/img.naturalWidth, off.height/img.naturalHeight);
+  const w=img.naturalWidth*sc, h=img.naturalHeight*sc, x=(off.width-w)/2, y=(off.height-h)/2;
+  o.fillStyle='#fff'; o.fillRect(0,0,off.width,off.height); o.drawImage(img,x,y,w,h);
+  const dataURL=off.toDataURL('image/jpeg',0.9); const fitted=new Image(); fitted.src=dataURL;
+  return {dataURL, img:fitted};
+}
+async function addImage(mode){
+  const file=await pickImage(); if(!file) return;
+  const tmp=new Image(); tmp.src=URL.createObjectURL(file);
+  await new Promise(r=>{ tmp.onload=r; tmp.onerror=r; });
+  const bg=fitImageToPaper(tmp); URL.revokeObjectURL(tmp.src);
+  if(mode==='append'){ Pages.list.push({strokes:[],textsHTML:'',bg}); setPage(Pages.list.length-1); }
+  else { const pos=Pages.idx+1; Pages.list.splice(pos,0,{strokes:[],textsHTML:'',bg}); setPage(pos); }
+  pushHistory();
+}
 $('#btnImgAppend').onclick=()=>addImage('append');
 $('#btnImgInsert').onclick=()=>addImage('insert');
 
@@ -550,6 +609,54 @@ function boot(){
   pushHistory();
 }
 boot();
+
+/* === PCヘッダ中央 横スクロール最小パッチ（HF6k） === */
+const rail = document.getElementById('railScroll');
+
+/* マウスホイールの縦回転を横スクロールへ転送（PC向け） */
+rail.addEventListener('wheel', (e) => {
+  const useY = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
+  const delta = useY ? e.deltaY : e.deltaX;
+  if (delta !== 0) {
+    rail.scrollLeft += delta;
+    e.preventDefault(); // ページ全体のスクロールを抑止
+  }
+}, { passive:false });
+
+/* ドラッグで横スクロール（クリック操作を邪魔しないよう閾値あり） */
+let railDown = false, railDrag = false, railStartX = 0, railStartLeft = 0;
+const DRAG_THRESHOLD = 5; // px
+
+rail.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 && e.pointerType === 'mouse') return;
+  railDown = true; railDrag = false;
+  railStartX = e.clientX; railStartLeft = rail.scrollLeft;
+  rail.setPointerCapture?.(e.pointerId);
+});
+
+rail.addEventListener('pointermove', (e) => {
+  if (!railDown) return;
+  const dx = e.clientX - railStartX;
+  if (!railDrag && Math.abs(dx) > DRAG_THRESHOLD) {
+    railDrag = true;
+    rail.classList.add('dragging');
+  }
+  if (railDrag) {
+    rail.scrollLeft = railStartLeft - dx;
+    e.preventDefault();
+  }
+}, { passive:false });
+
+function railEnd(e){
+  if (railDown && railDrag) e.preventDefault();
+  railDown = false; railDrag = false;
+  rail.classList.remove('dragging');
+  try{ rail.releasePointerCapture?.(e.pointerId); }catch{}
+}
+rail.addEventListener('pointerup', railEnd, { passive:false });
+rail.addEventListener('pointercancel', railEnd, { passive:false });
+rail.addEventListener('pointerleave', railEnd, { passive:true });
+/* === ここまで === */
 </script>
 </body>
 </html>
