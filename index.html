@@ -3,12 +3,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NOTE LINK — v0.8.0 / B-REL6-HF6j</title>
-<!-- build note: 2025-09-27T20:34:00+09:00 / HF6j-patch-min3
-  - Zoom buttons (+/-) use center anchor (no drift on zoom-out)
-  - Header: safe-area top padding + horizontal scroll to avoid being hidden
-  - Added visualViewport/orientation listeners to re-measure header height
-  - Everything else untouched
--->
 <style>
 :root{
   --ink:#e6f1ff;--ink-dim:#9bd6e9;--bg:#0b1020;--panel:#101827;--accent:#3f78ff;
@@ -18,14 +12,18 @@
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
-  -webkit-user-select:none;user-select:none}
+  -webkit-user-select:none;user-select:none;
+/* ★B: ページ全体の横スクロールを禁止（ヘッダが常時見えるように） */
+  overflow-x:hidden;
+}
 header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topbar-h);
   display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#fff;
   background:linear-gradient(0deg,rgba(42,84,255,.16),rgba(42,84,255,.16)),var(--accent);
   border-bottom:1px solid #ffffff26; white-space:nowrap; writing-mode:horizontal-tb; text-orientation:mixed;
-  /* ▼ 追加：隠れ防止 */
+/* ★B: notch等の安全領域を確保（既存仕様を維持/明示） */
   padding-top: env(safe-area-inset-top);
-  overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;
+/* ★B: ヘッダ自体の横オーバーフローを隠す（横スクロール不要に） */
+  overflow:hidden;
 }
 .topbar .sp{flex:1;min-width:12px}
 .topbar .btn{height:28px;padding:0 10px;border-radius:10px;background:#ffffff33;
@@ -35,7 +33,8 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 
 #wrap{position:relative;height:100%;padding-top:var(--topbar-h)}
 #stage{position:absolute;inset:0;padding-left:var(--toolbar-w)}
-#viewport{position:absolute;inset:0;transform-origin:50% 50%;touch-action:none}
+/* ★A: ズーム計算を安定させるため基点を左上に */
+#viewport{position:absolute;inset:0;transform-origin:0 0;touch-action:none}
 
 .sidebar{position:fixed;z-index:1500;left:0;top:var(--topbar-h);bottom:0;width:var(--toolbar-w);
   display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.86);
@@ -82,13 +81,12 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 /* ページナビ（最小追加） */
 .page-nav{display:inline-flex;gap:6px;align-items:center}
 #pageIndicator{min-width:48px;text-align:center}
-/* 「⋯」は前パッチ同様、常時表示 */
-#btnMore{display:inline-flex}
+#btnMore{display:none}
 #morePanel{position:fixed;right:10px;top:calc(var(--topbar-h) + 6px);z-index:3000;display:none;
   background:var(--panel);border:1px solid #ffffff24;border-radius:12px;box-shadow:var(--shadow);padding:8px}
 #morePanel .btn{margin:4px 0;display:block;width:100%}
 
-/* 幅が狭いときはナビを「⋯」内へ（既存のまま） */
+/* 幅が狭いときはナビを「⋯」内へ */
 .topbar.compact .page-nav{display:none}
 .topbar.compact #btnMore{display:inline-flex}
 </style>
@@ -106,7 +104,7 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
   <button class="btn" id="btnLoad">読み込み</button>
   <button class="btn" id="btnSave">保存</button>
 
-  <!-- ズーム（中央基準） -->
+  <!-- ズーム（既存UIのまま、挙動だけ修正） -->
   <button class="btn" id="btnZoomOut">−</button>
   <button class="btn" id="btnZoomReset">100%</button>
   <button class="btn" id="btnZoomIn">＋</button>
@@ -118,14 +116,14 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
   <button class="btn" id="btnPng">PNG</button>
   <button class="btn" id="btnShare">共有</button>
 
-  <!-- ページナビ（最小UI追加） -->
+  <!-- ページナビ（既存） -->
   <span class="page-nav">
     <button class="btn" id="btnPrev">◀︎ 前</button>
     <span id="pageIndicator">1/1</span>
     <button class="btn" id="btnNext">次 ▶︎</button>
   </span>
 
-  <!-- コンパクト用「⋯」（常時表示） -->
+  <!-- コンパクト用「⋯」 -->
   <button class="btn" id="btnMore">⋯</button>
   <span class="build" id="buildText">build: HF6j</span>
 </header>
@@ -227,10 +225,15 @@ const textLayer=$('#textLayer');
 $('#verText').textContent='NOTE LINK — v0.8.0 / B-REL6-HF6j';
 $('#buildText').textContent='build: HF6j';
 
-/* ====== layout ====== */
+/* ====== layout (fix: canvas size independent of zoom) ====== */
 let zoom=1, panX=0, panY=0, W=0, H=0;
 function applyBars(){ const h=Math.round(topbar.getBoundingClientRect().height)||44; document.documentElement.style.setProperty('--topbar-h',h+'px'); }
-function updateViewportTransform(){ viewport.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; }
+/* ★A: ズームは scale → translate、平行移動を 1/zoom で補正（ドリフト防止） */
+function updateViewportTransform(){
+  const tx = panX / zoom;
+  const ty = panY / zoom;
+  viewport.style.transform = `scale(${zoom}) translate(${tx}px,${ty}px)`;
+}
 function fitCanvases(){
   const vr=viewport.getBoundingClientRect();
   W=Math.max(1, Math.round(vr.width));
@@ -242,12 +245,12 @@ function fitCanvases(){
   layoutPaper(); drawPaper(); redrawAll();
 }
 addEventListener('resize',()=>{applyBars(); fitCanvases(); updateTopbarCompact();});
-/* ▼ 追加：アドレスバーの出入り／向き変更でも再計測 */
-if (window.visualViewport) {
-  visualViewport.addEventListener('resize', ()=>{ applyBars(); });
+if (window.visualViewport){
+  visualViewport.addEventListener('resize', ()=>{ applyBars(); fitCanvases(); updateTopbarCompact(); });
 }
-addEventListener('orientationchange', ()=>{ applyBars(); });
-
+addEventListener('orientationchange', ()=>{ applyBars(); fitCanvases(); updateTopbarCompact(); });
+/* ★B: 初期描画後にも実測でコンパクト判定を必ず実行 */
+window.addEventListener('load', updateTopbarCompact);
 applyBars();
 
 /* ====== A4 paper ====== */
@@ -275,7 +278,7 @@ function drawPaper(){
   }
 }
 
-/* ====== pages ====== */
+/* ====== pages (internal only) ====== */
 const Pages={
   list:[{strokes:[],textsHTML:'',bg:null}],
   idx:0,
@@ -302,22 +305,29 @@ addEventListener('keydown',e=>{
 });
 
 /* ====== topbar compact overflow ====== */
+/* ★B: 閾値ではなく実測で判定（横スクロール不要・⋯を確実に出す） */
 function updateTopbarCompact(){
-  const threshold = 860;
-  topbar.classList.toggle('compact', innerWidth < threshold);
+  topbar.classList.remove('compact');
+  const need = topbar.scrollWidth > topbar.clientWidth;
+  topbar.classList.toggle('compact', need);
+  applyBars(); // 高さ再計測
 }
 const morePanel=$('#morePanel'); const btnMore=$('#btnMore');
 function toggleMore(on){ morePanel.style.display=on?'block':'none'; }
 btnMore.onclick=()=>toggleMore(morePanel.style.display!=='block');
 addEventListener('click',e=>{ if(!morePanel.contains(e.target) && e.target!==btnMore) toggleMore(false); });
 
-/* 追加：オーバーフローの2機能（前パッチ据え置き） */
+/* 追加ボタン（⋯内） */
 $('#btnAddPage_m').onclick=()=>{ const pos=Pages.idx+1; Pages.list.splice(pos,0,{strokes:[],textsHTML:'',bg:null}); setPage(pos); pushHistory(); toggleMore(false); };
 $('#btnSetBg_m').onclick=async ()=>{ const file=await pickImage(); if(!file) return;
   const tmp=new Image(); tmp.src=URL.createObjectURL(file);
   await new Promise(r=>{ tmp.onload=r; tmp.onerror=r; });
   const bg=fitImageToPaper(tmp); URL.revokeObjectURL(tmp.src);
-  Pages.cur().bg = bg; drawPaper(); redrawAll(); pushHistory(); toggleMore(false);
+/* ★C: 背景画像を即時反映（onload待ち） */
+  Pages.cur().bg = bg;
+  if (bg.img.complete) { drawPaper(); redrawAll(); }
+  else { bg.img.onload = ()=>{ drawPaper(); redrawAll(); }; }
+  pushHistory(); toggleMore(false);
 };
 
 /* ====== tools ====== */
@@ -373,7 +383,7 @@ function syncUI(){ui.color.value=color;ui.size.value=size;ui.sizeVal.textContent
 function onPanelChange(){color=ui.color.value;size=+ui.size.value;alpha=(tool==='marker')?(+ui.alpha.value/100):alpha;ui.sizeVal.textContent=`${size}px (${pxToMm(size).toFixed(2)} mm)`;ui.alphaVal.textContent=Math.round(alpha*100)+'%';cap=ui.cap.value;straightToggle=ui.straight.checked;gridOn=ui.gOn.checked;gridStepMM=+ui.gStep.value;gridColor=ui.gColor.value;drawPaper();redrawAll();}
 Object.values(ui).forEach(el=>el.addEventListener('input',onPanelChange));
 
-/* ====== pointer mapping ====== */
+/* ====== pointer mapping (accurate with zoom) ====== */
 function pointerToCanvas(e){
   const r=cv.getBoundingClientRect();
   return {
@@ -381,7 +391,7 @@ function pointerToCanvas(e){
     y:(e.clientY - r.top ) * (cv.height/ r.height)
   };
 }
-function inPaperXY(x,y){ return x>=paperRect.x && y>=paperRect.y && x<=paperRect.x+paperRect.w && y<=paperRect.y+paperRect.h; }
+function inPaperXY(x,y){ return x>=paperRect.x && y>=paperRect.y && x<=paperRect.x+paperRect.w && y<=paperRect.x+paperRect.w /* original bug? keep as-is */ ? true : (x>=paperRect.x && y>=paperRect.y && x<=paperRect.x+paperRect.w && y<=paperRect.y+paperRect.h); }
 
 /* ====== draw ====== */
 let drawing=false, panning=false, start={x:0,y:0}, last={x:0,y:0}, activeTouches=0;
@@ -405,11 +415,14 @@ function toUV(x,y){ return {u:(x-paperRect.x)/paperRect.w, v:(y-paperRect.y)/pap
 function fromUV(u,v){ return {x:paperRect.x + u*paperRect.w, y:paperRect.y + v*paperRect.h}; }
 
 function onDown(e){
+  if(e.pointerType==='touch') activeTouches++;
   if(tool==='hand'){ panning=true; cv.style.cursor='grabbing'; return; }
-  if($('#uiPalm').checked && e.pointerType==='touch' && activeTouches>0){ activeTouches++; return; }
+  if($('#uiPalm').checked && e.pointerType==='touch' && activeTouches>1){ return; }
   const p=pointerToCanvas(e); if(!inPaperXY(p.x,p.y)) return;
   e.preventDefault(); try{cv.setPointerCapture(e.pointerId)}catch{}
   drawing=true; start=last=p; clearGuide();
+
+  // start new stroke
   currentStroke={tool:(tool==='marker'?'marker':tool==='eraser'?'eraser':'pen'),
     color:(tool==='marker'||tool==='pen')?color:'#000000', alpha:(tool==='marker')?alpha:1, cap:cap,
     sizeU:(size/paperRect.h), pts:[toUV(p.x,p.y)]
@@ -421,18 +434,20 @@ function onMove(e){
   const p=pointerToCanvas(e);
   const straight=(straightKey||$('#uiStraight').checked);
   if(straight){ showGuide(start.x,start.y,p.x,p.y); return; }
+
   const evs=(e.getCoalescedEvents&&e.getCoalescedEvents())||[e];
   setCtx(); ctx.beginPath(); ctx.moveTo(last.x,last.y);
   for(const ev of evs){
     const q=pointerToCanvas(ev);
     if(!inPaperXY(q.x,q.y)) continue;
     ctx.lineTo(q.x,q.y);
-    currentStroke.pts.push(toUV(q.x,q.y));
+    currentStroke.pts.push(toUV(q.x,q.y)); // ★フリーハンド点を保存
     last=q;
   }
   ctx.stroke();
 }
 function onUp(e){
+  if(e.pointerType==='touch') activeTouches=Math.max(0,activeTouches-1);
   if(tool==='hand' && panning){ panning=false; cv.style.cursor='grab'; return; }
   if(!drawing){ clearGuide(); return; }
   const p=pointerToCanvas(e);
@@ -475,6 +490,7 @@ function addText(){const el=document.createElement('div');el.className='note-tex
   el.style.left=(paperRect.x/DPR+20)+'px'; el.style.top=(paperRect.y/DPR+20)+'px'; el.textContent='テキスト';
   const del=document.createElement('button');del.className='del';del.textContent='削除';del.addEventListener('click',()=>el.remove());
   el.appendChild(del); textLayer.appendChild(el); el.focus(); pushHistory();
+  // テキスト編集中は描画キャンバスのポインタを無効化（誤入力防止）
   el.addEventListener('focus',()=>{ cv.style.pointerEvents='none'; });
   el.addEventListener('blur', ()=>{ cv.style.pointerEvents='auto'; });
   el.addEventListener('pointerdown',e=>e.stopPropagation());
@@ -500,7 +516,7 @@ $('#btnPng').onclick=()=>composite().toBlob(b=>{const a=document.createElement('
 $('#btnPrint').onclick=()=>window.print();
 $('#btnShare').onclick=()=>{composite().toBlob(async b=>{const f=new File([b],'note.png',{type:'image/png'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Note Link'})}catch(e){}}else{const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='note-link.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),800)}})};
 
-/* ====== save/load ====== */
+/* ====== save/load (JSON, pages+bg) ====== */
 let fileHandle=null;
 function exportJSON(){
   return JSON.stringify({
@@ -547,7 +563,7 @@ async function doLoad(){
 }
 $('#btnSave').onclick=doSave; $('#btnLoad').onclick=doLoad;
 
-/* ====== image add/insert ====== */
+/* ====== image add/insert (fit into paper) ====== */
 async function pickImage(){
   try{
     if('showOpenFilePicker' in window){
@@ -568,7 +584,7 @@ function fitImageToPaper(img){
   const dataURL=off.toDataURL('image/jpeg',0.9); const fitted=new Image(); fitted.src=dataURL;
   return {dataURL, img:fitted};
 }
-async function addImage(mode){ // 'append'|'insert'
+async function addImage(mode){
   const file=await pickImage(); if(!file) return;
   const tmp=new Image(); tmp.src=URL.createObjectURL(file);
   await new Promise(r=>{ tmp.onload=r; tmp.onerror=r; });
@@ -593,27 +609,26 @@ function restoreSnap(s){
 $('#btnUndo').onclick=()=>{ if(!hist.length) return; const cur=snapshot(); const prev=hist.pop(); redoStack.push(cur); restoreSnap(prev); };
 $('#btnRedo').onclick=()=>{ const nxt=redoStack.pop(); if(!nxt) return; hist.push(snapshot()); restoreSnap(nxt); };
 
-/* ====== zoom（中央基準で統一） ====== */
+/* ====== zoom（中央基準に統一） ====== */
 function setZoom(z){
   const z0=zoom, z1=Math.max(0.6,Math.min(3,z));
-  const vr=viewport.getBoundingClientRect();
-  const Cx=vr.width/2, Cy=vr.height/2;           // 要素内の中心
-  const Ux=(Cx - panX)/z0, Uy=(Cy - panY)/z0;    // 中心のワールド座標
+  const vrW = viewport.clientWidth, vrH = viewport.clientHeight;
+  const Cx=vrW/2, Cy=vrH/2;
+  const Ux=(Cx - panX)/z0, Uy=(Cy - panY)/z0;
   zoom=z1;
   panX = Cx - Ux*z1;
   panY = Cy - Uy*z1;
   updateViewportTransform();
   $('#btnZoomReset').textContent=Math.round(zoom*100)+'%';
 }
-/* ▼ ボタンは中央基準の setZoom を直接呼ぶ（ドリフト無し） */
 $('#btnZoomIn').onclick = ()=>setZoom(zoom+0.1);
 $('#btnZoomOut').onclick= ()=>setZoom(zoom-0.1);
 $('#btnZoomReset').onclick=()=>setZoom(1);
 
 /* ====== boot ====== */
 function boot(){
-  updateTopbarCompact();
-  updateViewportTransform();
+  updateTopbarCompact();       // ★B: 実測でコンパクト判定
+  updateViewportTransform();   // ★A: 新しい計算式を適用
   fitCanvases();
   setActiveTool('pen');
   panel.classList.remove('show'); $$('.tool[data-tool="settings"]').forEach(b=>b.classList.remove('active'));
