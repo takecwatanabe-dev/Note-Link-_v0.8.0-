@@ -358,4 +358,58 @@ addEventListener('keydown',e=>{ if(e.altKey && (e.key==='d'||e.key==='D')) $('#d
 
 boot();
 </script>
+  <!-- === HF6m: Toolbar Toggle復活（単一ブロック）=== -->
+<style>
+:root{ --toolbar-w:56px; --toolbar-w-collapsed:16px; }
+/* 既存CSSがある想定。なければフォールバックとして効く */
+.sidebar.collapsed{ width:var(--toolbar-w-collapsed); }
+.sidebar .tool[data-tool="toggle"] svg{ transition:transform .2s; }
+.sidebar.collapsed .tool[data-tool="toggle"] svg{ transform:rotate(180deg); }
+/* ステージの左パディングを変えてズレ防止（両対応セレクタ） */
+#stage{ padding-left:var(--toolbar-w); }
+.sidebar.collapsed ~ #stage,
+.sidebar.collapsed + * #stage{ padding-left:var(--toolbar-w-collapsed); }
+</style>
+
+<script>
+/* HF6m: △トグルが無い環境だけに最小限を追加。UIの順序や見た目は壊さない */
+(function(){
+  const sidebar = document.querySelector('.sidebar');
+  if(!sidebar) return;
+  const rail = sidebar.querySelector('.rail') || sidebar;
+
+  // すでにトグルがあれば何もしない
+  if(rail.querySelector('#btnSidebarToggle,[data-tool="toggle"]')) return;
+
+  // △ボタンを先頭に追加（Note Link既存UIのトーンに合わせた簡素SVG）
+  const btn = document.createElement('button');
+  btn.className = 'tool';
+  btn.id = 'btnSidebarToggle';
+  btn.dataset.tool = 'toggle';
+  btn.title = 'ツールバーの開閉';
+  btn.setAttribute('data-tip','ツールバーの開閉');
+  btn.innerHTML =
+    '<svg viewBox="0 0 24 24" width="18" height="18" '+
+    'stroke="currentColor" fill="none" stroke-width="2" '+
+    'stroke-linecap="round" stroke-linejoin="round">'+
+    '<path d="M8 6l8 6-8 6"/></svg>';
+
+  rail.insertBefore(btn, rail.firstChild);
+
+  // クリックで開閉（classの付け外しのみ。既存CSSに従う）
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    const collapsed = sidebar.classList.toggle('collapsed');
+
+    // 既存レイアウトがCSS変数参照の場合の保険
+    const root = document.documentElement;
+    root.style.setProperty('--toolbar-w',
+      collapsed
+       ? getComputedStyle(root).getPropertyValue('--toolbar-w-collapsed') || '16px'
+       : '56px'
+    );
+  }, {passive:true});
+})();
+</script>
+<!-- === /HF6m === -->
 </body></html>
