@@ -2,7 +2,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NOTE LINK — v0.8.0 / B-REL6-K</title>
+<title>NOTE LINK — v0.8.0 / B-REL6-L</title>
+<!--
+PATCH: 2025-09-28 07:15 JST / VERSION HF6L
+CHANGES:
+  - Header center rail discoverability: edge fade, first-time "⇠ スライド ⇢" badge, hover thin scrollbar
+  - Overflow/position-aware fade visibility
+  - Keeps HF6K wheel/drag horizontal scrolling behavior
+-->
 <style>
 :root{
   --ink:#e6f1ff;--ink-dim:#9bd6e9;--bg:#0b1020;--panel:#101827;--accent:#3f78ff;
@@ -27,6 +34,7 @@ header.topbar{
 .topbar .brand{flex:0 0 auto;font-weight:700}
 .topbar .rail-scroll{
   /* 中央：横スクロール可能なレール（PC/タブレット/スマホで共通） */
+  position:relative; /* フェード/ヒント基準（HF6L） */
   flex:1 1 auto; min-width:40px;
   overflow-x:auto; overflow-y:hidden;
   display:flex; align-items:center; gap:8px;
@@ -42,6 +50,49 @@ header.topbar{
   border:1px solid #ffffff38;color:#fff;display:inline-flex;align-items:center}
 .topbar .btn:active{transform:translateY(1px)}
 .build{opacity:.8}
+
+/* ==== HF6L: rail の視覚ヒント ==== */
+/* 左右エッジのフェード（“先がある”ことを示す） */
+.topbar .rail-scroll::before,
+.topbar .rail-scroll::after{
+  content:"";
+  position:absolute; top:0; bottom:0; width:28px;
+  pointer-events:none; opacity:0; transition:opacity .2s;
+}
+.topbar .rail-scroll::before{
+  left:0; background:linear-gradient(to right, rgba(0,0,0,.35), rgba(0,0,0,0));
+}
+.topbar .rail-scroll::after{
+  right:0; background:linear-gradient(to left, rgba(0,0,0,.35), rgba(0,0,0,0));
+}
+/* オーバーフローがある時のみフェードを出す。位置に応じて片側OFF */
+.topbar .rail-scroll.can-overflow:not(.at-start)::before{ opacity:.9; }
+.topbar .rail-scroll.can-overflow:not(.at-end)::after{ opacity:.9; }
+.topbar .rail-scroll.can-overflow.at-start::before{ opacity:0; }
+.topbar .rail-scroll.can-overflow.at-end::after{ opacity:0; }
+
+/* PCホバー時のみ薄いスクロールバーを露出（気づきやすさUP） */
+@media (hover:hover){
+  .topbar .rail-scroll:hover{ scrollbar-width:thin; }
+  .topbar .rail-scroll:hover::-webkit-scrollbar{ height:6px; }
+  .topbar .rail-scroll:hover::-webkit-scrollbar-thumb{
+    background:#ffffff66; border-radius:6px;
+  }
+}
+
+/* 最初だけ表示する“スライド”ヒントバッジ */
+.rail-hint{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  background:#0009; color:#fff; padding:2px 8px; border-radius:12px;
+  font-size:11px; line-height:1.9; letter-spacing:.02em;
+  pointer-events:none; opacity:0; transition:opacity .25s;
+  box-shadow:0 4px 10px rgba(0,0,0,.25);
+}
+.rail-hint.show{ opacity:1; animation:railPulse 1.6s ease-in-out 2; }
+@keyframes railPulse{
+  0%,100%{ transform:translate(-50%,-50%) scale(1); }
+  50%    { transform:translate(-50%,-50%) scale(1.06); }
+}
 
 #wrap{position:relative;height:100%;padding-top:var(--topbar-h)}
 #stage{position:absolute;inset:0;padding-left:var(--toolbar-w)}
@@ -101,7 +152,7 @@ header.topbar{
 <body>
 <header class="topbar" id="topbar">
   <!-- 左：固定表示 -->
-  <div class="brand"><strong id="verText">NOTE LINK — V0.8.0 / B-REL6-K</strong></div>
+  <div class="brand"><strong id="verText">NOTE LINK — V0.8.0 / B-REL6-L</strong></div>
 
   <!-- 中央：横スクロール可能なレール -->
   <div class="rail-scroll" id="railScroll">
@@ -126,7 +177,10 @@ header.topbar{
       <button class="btn" id="btnNext">次 ▶︎</button>
     </span>
 
-    <span class="build" id="buildText">BUILD: HF6K</span>
+    <span class="build" id="buildText">BUILD: HF6L</span>
+
+    <!-- HF6L: “スライド”視覚ヒント（初回のみ表示） -->
+    <div id="railHint" class="rail-hint" aria-hidden="true">⇠ スライド ⇢</div>
   </div>
 
   <!-- 右：固定 -->
@@ -229,13 +283,13 @@ const cv=$('#paint'), ctx=cv.getContext('2d',{alpha:true});
 const textLayer=$('#textLayer');
 
 /* version */
-$('#verText').textContent='NOTE LINK — V0.8.0 / B-REL6-K';
-$('#buildText').textContent='BUILD: HF6K';
+$('#verText').textContent='NOTE LINK — V0.8.0 / B-REL6-L';
+$('#buildText').textContent='BUILD: HF6L';
 
 /* layout */
 let zoom=1, panX=0, panY=0, W=0, H=0;
 function applyBars(){ const h=Math.round(topbar.getBoundingClientRect().height)||44; document.documentElement.style.setProperty('--topbar-h',h+'px'); }
-/* ズーム：中央基準維持 */
+/* ズーム：中央基準維持（scale→translate, origin 0 0） */
 function updateViewportTransform(){
   const tx=panX/zoom, ty=panY/zoom;
   viewport.style.transform=`scale(${zoom}) translate(${tx}px,${ty}px)`;
@@ -301,7 +355,7 @@ $('#btnPrev_m').onclick=()=>{ setPage(Pages.idx-1); toggleMore(false); };
 $('#btnNext_m').onclick=()=>{ setPage(Pages.idx+1); toggleMore(false); };
 addEventListener('keydown',e=>{ if(e.key==='ArrowLeft') setPage(Pages.idx-1); if(e.key==='ArrowRight') setPage(Pages.idx+1); });
 
-/* more panel */
+/* topbar overflow panel */
 const morePanel=$('#morePanel'); const btnMore=$('#btnMore');
 function toggleMore(on){ morePanel.style.display=on?'block':'none'; }
 btnMore.onclick=()=>toggleMore(morePanel.style.display!=='block');
@@ -495,7 +549,7 @@ $('#btnShare').onclick=()=>{composite().toBlob(async b=>{const f=new File([b],'n
 let fileHandle=null;
 function exportJSON(){
   return JSON.stringify({
-    v:'HF6k',
+    v:'HF6l',
     pages: Pages.list.map(pg=>({strokes:pg.strokes||[],textsHTML:pg.textsHTML||'', bg:pg.bg && pg.bg.dataURL ? {dataURL:pg.bg.dataURL}:null})),
     idx: Pages.idx,
     grid:{on:gridOn,stepMM:gridStepMM,color:gridColor}
@@ -610,9 +664,8 @@ function boot(){
 }
 boot();
 
-/* === PCヘッダ中央 横スクロール最小パッチ（HF6k） === */
+/* === HF6K: PCヘッダ中央 横スクロール最小パッチ（維持） === */
 const rail = document.getElementById('railScroll');
-
 /* マウスホイールの縦回転を横スクロールへ転送（PC向け） */
 rail.addEventListener('wheel', (e) => {
   const useY = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
@@ -622,18 +675,15 @@ rail.addEventListener('wheel', (e) => {
     e.preventDefault(); // ページ全体のスクロールを抑止
   }
 }, { passive:false });
-
 /* ドラッグで横スクロール（クリック操作を邪魔しないよう閾値あり） */
 let railDown = false, railDrag = false, railStartX = 0, railStartLeft = 0;
 const DRAG_THRESHOLD = 5; // px
-
 rail.addEventListener('pointerdown', (e) => {
   if (e.button !== 0 && e.pointerType === 'mouse') return;
   railDown = true; railDrag = false;
   railStartX = e.clientX; railStartLeft = rail.scrollLeft;
   rail.setPointerCapture?.(e.pointerId);
 });
-
 rail.addEventListener('pointermove', (e) => {
   if (!railDown) return;
   const dx = e.clientX - railStartX;
@@ -646,7 +696,6 @@ rail.addEventListener('pointermove', (e) => {
     e.preventDefault();
   }
 }, { passive:false });
-
 function railEnd(e){
   if (railDown && railDrag) e.preventDefault();
   railDown = false; railDrag = false;
@@ -656,7 +705,48 @@ function railEnd(e){
 rail.addEventListener('pointerup', railEnd, { passive:false });
 rail.addEventListener('pointercancel', railEnd, { passive:false });
 rail.addEventListener('pointerleave', railEnd, { passive:true });
-/* === ここまで === */
+
+/* === HF6L: rail のオーバーフロー検知＋ヒント === */
+(function enhanceRailDiscoverability(){
+  const rail = document.getElementById('railScroll');
+  const hint = document.getElementById('railHint');
+  if(!rail || !hint) return;
+
+  function updateOverflowState(){
+    const can = rail.scrollWidth > rail.clientWidth + 1;
+    rail.classList.toggle('can-overflow', can);
+    const sc = rail.scrollLeft;
+    const max = rail.scrollWidth - rail.clientWidth - 1;
+    rail.classList.toggle('at-start', sc <= 0);
+    rail.classList.toggle('at-end', sc >= max);
+  }
+
+  function maybeShowHint(){
+    let shown = false;
+    try{ shown = sessionStorage.getItem('railHinted') === '1'; }catch{}
+    if(shown) return;
+    if(rail.classList.contains('can-overflow')){
+      hint.classList.add('show');
+      setTimeout(()=>{
+        hint.classList.remove('show');
+        try{ sessionStorage.setItem('railHinted','1'); }catch{}
+      }, 2200);
+    }
+  }
+
+  const dismissHint = ()=>{
+    hint.classList.remove('show');
+    try{ sessionStorage.setItem('railHinted','1'); }catch{}
+  };
+
+  rail.addEventListener('scroll', updateOverflowState, {passive:true});
+  rail.addEventListener('wheel',  dismissHint, {passive:true});
+  rail.addEventListener('pointerdown', dismissHint, {passive:true});
+  window.addEventListener('resize', ()=>{ updateOverflowState(); maybeShowHint(); });
+
+  updateOverflowState();
+  maybeShowHint();
+})();
 </script>
 </body>
 </html>
