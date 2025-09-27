@@ -1,648 +1,361 @@
-<!doctype html><html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NOTE LINK — v0.8.0 / B-REL6-HF6k</title>
+<!doctype html><html lang="ja"><head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>NOTE LINK — v0.8.0 / B-REL6-HF6l</title>
 <style>
 :root{
-  --ink:#e6f1ff;--ink-dim:#9bd6e9;--bg:#0b1020;--panel:#101827;--accent:#3f78ff;
-  --ok:#20e3c2;--muted:#2a3550;--shadow:0 10px 24px rgba(0,0,0,.45);
-  --topbar-h:44px;--toolbar-w:56px
+  --ink:#e6f1ff;--ink-dim:#a6c2e8;--bg:#0b1020;--panel:#101827;--accent:#3f78ff;--ok:#20e3c2;--muted:#2a3550;
+  --topbar-h:46px;--toolbar-w:56px;--sheet:#fff;--sheet-shadow:0 6px 28px rgba(0,0,0,.45)
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
-  -webkit-user-select:none;user-select:none}
-header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topbar-h);
-  display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#fff;
-  background:linear-gradient(0deg,rgba(42,84,255,.16),rgba(42,84,255,.16)),var(--accent);
-  border-bottom:1px solid #ffffff26; white-space:nowrap; writing-mode:horizontal-tb; text-orientation:mixed}
-.topbar .sp{flex:1;min-width:12px}
-.topbar .btn{height:28px;padding:0 10px;border-radius:10px;background:#ffffff33;
-  border:1px solid #ffffff38;color:#fff;display:inline-flex;align-items:center}
-.topbar .btn:active{transform:translateY(1px)}
-.build{opacity:.8}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;-webkit-user-select:none;user-select:none}
 
+/* ========== Top bar ========== */
+header.topbar{position:fixed;z-index:1000;left:0;right:0;top:0;height:var(--topbar-h);display:flex;align-items:center;gap:8px;padding:6px 10px;background:#324a8d;/*既存風*/background:linear-gradient(0deg,rgba(42,84,255,.16),rgba(42,84,255,.16)),var(--accent);border-bottom:1px solid #ffffff26}
+.topbar .brand{font-weight:700}
+.topbar .sp{flex:1}
+.topbar .btn{height:30px;min-width:36px;padding:0 10px;border-radius:10px;border:1px solid #ffffff38;background:#ffffff2d;color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.topbar .btn:active{transform:translateY(1px)}
+.topbar .btn.small{min-width:auto;padding:0 8px}
+.topbar .group{display:inline-flex;gap:6px;align-items:center}
+#build{opacity:.75;font-size:12px}
+
+/* オーバーフロー … */
+#overflowBtn{display:none}
+@media (max-width:980px){
+  #pagerBlock{display:none}
+  #overflowBtn{display:inline-flex}
+}
+
+/* ========== Stage ========== */
 #wrap{position:relative;height:100%;padding-top:var(--topbar-h)}
 #stage{position:absolute;inset:0;padding-left:var(--toolbar-w)}
-#viewport{position:absolute;inset:0;transform-origin:50% 50%;touch-action:none}
+#viewport{position:absolute;inset:0;transform-origin:0 0;touch-action:none}
 
-.sidebar{position:fixed;z-index:1500;left:0;top:var(--topbar-h);bottom:0;width:var(--toolbar-w);
-  display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.86);
-  box-shadow:0 0 0 1px var(--muted) inset}
+/* Sidebar（既存風） */
+.sidebar{position:fixed;z-index:900;left:0;top:var(--topbar-h);bottom:0;width:var(--toolbar-w);display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.86);box-shadow:0 0 0 1px var(--muted) inset}
 .sidebar .rail{width:100%;padding:6px;display:flex;flex-direction:column;gap:8px}
-.tool{display:grid;place-items:center;width:100%;height:36px;border-radius:10px;cursor:pointer;
-  background:rgba(22,26,38,.75);border:1px solid rgba(50,60,100,.6);
-  outline:1px solid rgba(79,124,255,.35);box-shadow:0 0 0 2px rgba(0,0,0,.12)}
-.tool:hover{outline:1px solid rgba(79,124,255,.5)}
-.tool.active{outline:1px solid var(--ok)}
+.tool{display:grid;place-items:center;width:100%;height:36px;border-radius:10px;cursor:pointer;background:rgba(22,26,38,.75);border:1px solid rgba(50,60,100,.6);outline:1px solid rgba(79,124,255,.35)}
+.tool.active{outline-color:var(--ok)}
 .tool svg{width:18px;height:18px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.sidebar.collapsed .rail>.tool:not([data-tool="toggle"]){display:none}
-.tool[data-tool="toggle"] svg{transition:transform .2s}
-.sidebar.collapsed .tool[data-tool="toggle"] svg{transform:rotate(180deg)}
 
-.panel{position:absolute;z-index:1400;left:70px;top:calc(var(--topbar-h) + 10px);
-  min-width:280px;max-width:320px;padding:8px 12px 10px;border-radius:14px;color:var(--ink);
-  background:var(--panel);border:1px solid #ffffff24;box-shadow:var(--shadow);
-  display:none;user-select:none;max-height:calc(100vh - var(--topbar-h) - 24px);overflow:auto}
+/* Panel（設定） */
+.panel{position:absolute;z-index:950;left:70px;top:calc(var(--topbar-h) + 10px);min-width:300px;max-width:340px;padding:10px;border-radius:14px;color:var(--ink);background:var(--panel);border:1px solid #ffffff24;box-shadow:0 10px 24px rgba(0,0,0,.45);display:none;max-height:calc(100vh - 90px);overflow:auto}
 .panel.show{display:block}
-.panel .handle{position:sticky;top:0;display:flex;align-items:center;gap:8px;padding:8px 12px;
-  margin:-8px -12px 8px;background:var(--panel);border-bottom:1px solid #ffffff20;border-radius:14px 14px 0 0;cursor:grab;touch-action:none}
-#panelTool{flex:1;font-weight:600;font-size:14px;text-align:left}
-.panel .close{margin-left:auto;height:26px;padding:0 10px;border-radius:8px;border:1px solid #ffffff2e;background:#ffffff14;color:#fff;font-size:14px}
-.panel .row{display:flex;align-items:center;gap:10px;margin:6px 0}
-.panel .row label{width:100px;font-size:12px;color:var(--ink-dim)}
-.panel .row input[type="range"]{flex:1;min-width:120px}
-.panel .row button{height:26px;padding:0 8px;border-radius:8px;border:1px solid #ffffff2e;background:#ffffff14;color:#fff;font-size:12px}
+.panel .row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.panel .row label{width:110px;font-size:12px;color:var(--ink-dim)}
+.panel .row input[type="range"]{flex:1}
+.panel .row button{height:28px;padding:0 10px;border-radius:8px;border:1px solid #ffffff2e;background:#ffffff14;color:#fff}
 
-#paper,#guide,#paint{position:absolute;left:var(--toolbar-w);top:0;right:0;bottom:0}
-#paper,#guide{z-index:100;pointer-events:none}
-#paint{z-index:120;touch-action:none;-webkit-touch-callout:none}
+/* canvases */
+#pageBg,#grid,#guide,#paint{position:absolute;left:var(--toolbar-w);top:0;right:0;bottom:0}
+#pageBg{z-index:60}#grid{z-index:70;pointer-events:none}#guide{z-index:80;pointer-events:none}#paint{z-index:90;touch-action:none;-webkit-touch-callout:none}
 
-.text-layer{position:absolute;left:var(--toolbar-w);top:0;right:0;bottom:0;z-index:130;pointer-events:none}
-.note-text{position:absolute;min-width:64px;min-height:28px;padding:6px 8px;color:#111;background:transparent;
-  outline:1px dashed #ffffff40;border-radius:6px;pointer-events:auto;
-  -webkit-user-select:text; user-select:text; caret-color:auto}
-.note-text[contenteditable="true"]:focus{outline:2px solid var(--ok)}
-.note-text .del{position:absolute;right:-8px;top:-10px;font-size:11px;color:#fff;background:#0008;border:1px solid #fff3;border-radius:8px;padding:2px 6px;display:none}
-.note-text:focus-within .del{display:block}
+/* A4 sheet frame */
+#sheetBox{position:absolute;z-index:65;left:50%;top:50%;transform:translate(-50%,-50%);width:794px;height:1123px;background:var(--sheet);box-shadow:var(--sheet-shadow)}
 
-@media print{header.topbar,.sidebar,.panel{display:none!important}#stage{padding-left:0!important}body,html,#wrap{height:auto}}
+/* text layer */
+.text-layer{position:absolute;left:var(--toolbar-w);top:0;right:0;bottom:0;z-index:120;pointer-events:none}
+.note-text{position:absolute;min-width:64px;min-height:28px;padding:6px 8px;color:#0b1020;background:#fff8;border:1px dashed #2238;border-radius:6px;pointer-events:auto}
 
-/* ページナビ（最小追加） */
-.page-nav{display:inline-flex;gap:6px;align-items:center}
-#pageIndicator{min-width:48px;text-align:center}
-#btnMore{display:none}
-#morePanel{position:fixed;right:10px;top:calc(var(--topbar-h) + 6px);z-index:3000;display:none;
-  background:var(--panel);border:1px solid #ffffff24;border-radius:12px;box-shadow:var(--shadow);padding:8px}
-#morePanel .btn{margin:4px 0;display:block;width:100%}
+/* overflow menu (⋯) */
+#overflowMenu{position:fixed;right:10px;top:calc(var(--topbar-h) + 6px);background:var(--panel);border:1px solid #ffffff24;border-radius:12px;box-shadow:0 10px 24px rgba(0,0,0,.45);padding:8px;display:none;z-index:1200}
+#overflowMenu button{display:block;width:100%;text-align:left;margin:4px 0}
 
-/* 幅が狭いときはナビを「⋯」内へ */
-.topbar.compact .page-nav{display:none}
-.topbar.compact #btnMore{display:inline-flex}
+/* debug chip */
+#dbg{position:fixed;right:10px;bottom:10px;background:#ffffff22;border:1px solid #ffffff3a;border-radius:10px;padding:6px 10px;color:#fff;font-size:12px;cursor:pointer}
+
+@media print{header.topbar,.sidebar,#overflowMenu,#dbg{display:none!important}#stage{padding-left:0!important}#wrap{padding-top:0}#sheetBox{box-shadow:none}}
 </style>
 </head>
 <body>
 <header class="topbar" id="topbar">
-  <strong id="verText">NOTE LINK — v0.8.0 / B-REL6-HF6k</strong>
+  <strong class="brand">NOTE LINK — v0.8.0 / B-REL6-HF6l</strong>
+  <div class="group">
+    <button class="btn" id="btnAddImg">画像追加</button>
+    <button class="btn" id="btnInsertImg">画像挿入</button>
+    <button class="btn" id="btnAddPage">＋ページ</button>
+  </div>
+  <div class="group">
+    <button class="btn" id="btnLoad">読み込み</button>
+    <button class="btn" id="btnSave">保存</button>
+  </div>
+  <div class="group">
+    <button class="btn small" id="btnZoomOut">−</button>
+    <button class="btn small" id="btnZoomReset">100%</button>
+    <button class="btn small" id="btnZoomIn">＋</button>
+  </div>
+  <div class="group">
+    <button class="btn small" id="btnUndo">undo</button>
+    <button class="btn small" id="btnRedo">redo</button>
+    <button class="btn small" id="btnPrint">印刷</button>
+    <button class="btn small" id="btnPng">PNG</button>
+    <button class="btn small" id="btnShare">共有</button>
+  </div>
+  <div class="group" id="pagerBlock">
+    <button class="btn small" id="btnPrev">◀ 前</button>
+    <span id="pageInfo">1/1</span>
+    <button class="btn small" id="btnNext">次 ▶</button>
+  </div>
   <span class="sp"></span>
-
-  <!-- 画像：末尾追加／直後挿入（既存仕様維持） -->
-  <button class="btn" id="btnImgAppend">画像追加</button>
-  <button class="btn" id="btnImgInsert">画像挿入</button>
-
-  <!-- 現ページに背景設定（オーバーフロー内にも複製） -->
-  <button class="btn" id="btnAddPage">＋ページ</button>
-
-  <!-- 読み込み／保存（既存仕様維持） -->
-  <button class="btn" id="btnLoad">読み込み</button>
-  <button class="btn" id="btnSave">保存</button>
-
-  <!-- ズーム（既存） -->
-  <button class="btn" id="btnZoomOut">−</button>
-  <button class="btn" id="btnZoomReset">100%</button>
-  <button class="btn" id="btnZoomIn">＋</button>
-
-  <!-- Undo/Redo / 出力（既存） -->
-  <button class="btn" id="btnUndo">undo</button>
-  <button class="btn" id="btnRedo">redo</button>
-  <button class="btn" id="btnPrint">印刷</button>
-  <button class="btn" id="btnPng">PNG</button>
-  <button class="btn" id="btnShare">共有</button>
-
-  <!-- ページナビ（最小UI追加） -->
-  <span class="page-nav">
-    <button class="btn" id="btnPrev">◀︎ 前</button>
-    <span id="pageIndicator">1/1</span>
-    <button class="btn" id="btnNext">次 ▶︎</button>
-  </span>
-
-  <!-- コンパクト用「⋯」 -->
-  <button class="btn" id="btnMore">⋯</button>
-  <span class="build" id="buildText">build: HF6k</span>
+  <button class="btn" id="overflowBtn">⋯</button>
+  <span id="build">build: HF6l</span>
 </header>
 
-<!-- コンパクト表示のオーバーフローパネル -->
-<div id="morePanel">
-  <button class="btn" id="btnPrev_m">◀︎ 前</button>
-  <div style="text-align:center;color:#fff;margin:4px 0">ページ <span id="pageIndicator_m">1/1</span></div>
-  <button class="btn" id="btnNext_m">次 ▶︎</button>
-  <hr style="border-color:#ffffff22">
-  <button class="btn" id="btnAddPage_m">＋ページ</button>
-  <button class="btn" id="btnSetBg_m">画像を背景に設定</button>
+<div id="overflowMenu">
+  <button class="btn" id="omPrev">◀ 前</button>
+  <button class="btn" id="omNext">次 ▶</button>
+  <button class="btn" id="omAddPage">＋ページ</button>
+  <button class="btn" id="omSetBg">画像を背景に設定</button>
 </div>
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar">
   <div class="rail">
-    <button class="tool" id="btnSidebarToggle" data-tool="toggle" title="ツールバーの開閉">
-      <svg viewBox="0 0 24 24"><path d="M5 15 L12 7 L19 15 M19 15 L5 15"/></svg>
-    </button>
-    <button class="tool" data-tool="pen" title="ペン">
-      <svg viewBox="0 0 24 24"><path d="M3 21l4-1 12-12-3-3L4 17l-1 4zM14 6l3 3"/></svg>
-    </button>
-    <button class="tool" data-tool="marker" title="マーカー">
-      <svg viewBox="0 0 24 24"><path d="M3 16l10-10 5 5-10 10-5 1 1-6zM13 6l5 5"/></svg>
-    </button>
-    <button class="tool" data-tool="eraser" title="消しゴム">
-      <svg viewBox="0 0 24 24"><path d="M3 15l8-8 6 6-6 6H7zM13 7l4 4"/></svg>
-    </button>
-    <button class="tool" data-tool="hand" title="選択/パン">
-      <svg viewBox="0 0 24 24"><path d="M9 11V6a2 2 0 0 1 4 0v5M13 11V5a2 2 0 1 1 4 0v8M9 11a2 2 0 0 1 4 0v8l-2 2-4-4-2-6 2-1z"/></svg>
-    </button>
-    <button class="tool" data-tool="keyboard" title="テキスト">
-      <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="2"></rect><path d="M7 10h10M5 13h14"/></svg>
-    </button>
-    <button class="tool" data-tool="settings" title="ツール設定（表示/非表示）">
-      <svg viewBox="0 0 24 24"><path d="M12 7.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zM4 13h2l1 2-1 2H4l-1-2 1-2zm14 0h2l1 2-1 2h-2l-1-2 1-2zM8 4h2l2 1 2-1h2l1 2-1 2h-2l-2-1-2 1H8L7 6l1-2z"/></svg>
-    </button>
+    <button class="tool" data-tool="pen" id="tPen" title="ペン"><svg viewBox="0 0 24 24"><path d="M3 21l4-1 12-12-3-3L4 17l-1 4zM14 6l3 3"/></svg></button>
+    <button class="tool" data-tool="marker" id="tMarker" title="マーカー"><svg viewBox="0 0 24 24"><path d="M3 16l10-10 5 5-10 10-5 1 1-6zM13 6l5 5"/></svg></button>
+    <button class="tool" data-tool="eraser" id="tEraser" title="消しゴム"><svg viewBox="0 0 24 24"><path d="M3 15l8-8 6 6-6 6H7zM13 7l4 4"/></svg></button>
+    <button class="tool" data-tool="hand" id="tHand" title="パン"><svg viewBox="0 0 24 24"><path d="M9 11V6a2 2 0 0 1 4 0v5M13 11V5a2 2 0 1 1 4 0v8M9 11a2 2 0 0 1 4 0v8l-2 2-4-4-2-6 2-1z"/></svg></button>
+    <button class="tool" data-tool="keyboard" id="tText" title="テキスト"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 10h10M5 13h14"/></svg></button>
+    <button class="tool" data-tool="settings" id="tSettings" title="設定"><svg viewBox="0 0 24 24"><path d="M12 7.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zM4 13h2l1 2-1 2H4l-1-2 1-2zm14 0h2l1 2-1 2h-2l-1-2 1-2zM8 4h2l2 1 2-1h2l1 2-1 2h-2l-2-1-2 1H8L7 6l1-2z"/></svg></button>
   </div>
 </aside>
 
+<!-- 設定パネル（最小） -->
 <div class="panel" id="panel">
-  <div class="handle" id="panelHandle">
-    <div id="panelTool">-</div>
-    <button class="close" id="panelClose">☒</button>
-  </div>
+  <div style="font-weight:600;margin-bottom:6px">ツール設定</div>
   <div class="row"><label>色</label><input type="color" id="uiColor" value="#000000"></div>
-  <div class="row" id="rowSize"><label>太さ</label><input type="range" min="1" max="60" value="4" id="uiSize"><span id="uiSizeVal">4px</span></div>
-  <div class="row" id="rowAlpha"><label>不透明度</label><input type="range" min="10" max="100" value="50" id="uiAlpha"><span id="uiAlphaVal">50%</span></div>
-  <div class="row" id="rowLineCap"><label>端の形</label>
-    <select id="uiCap"><option value="butt">□ 角</option><option value="round" selected>● 丸</option></select>
-  </div>
-  <div class="row" id="rowStraight"><label>直線モード</label>
-    <label><input type="checkbox" id="uiStraight">（モバイル / 15°刻み）</label>
-    <label><input type="checkbox" id="uiGridFirst">グリッド優先</label>
-  </div>
-  <div class="row" id="rowGrid"><label>グリッド</label>
-    <label><input type="checkbox" id="uiGrid"> 表示</label>
+  <div class="row"><label>太さ</label><input type="range" id="uiSize" min="1" max="60" value="4"><span id="uiSizeVal">4px</span></div>
+  <div class="row"><label>不透明度（マーカー）</label><input type="range" id="uiAlpha" min="10" max="100" value="50"><span id="uiAlphaVal">50%</span></div>
+  <div class="row"><label>直線モード</label><label><input type="checkbox" id="uiStraight">（モバイル）</label></div>
+  <div class="row"><label>グリッド</label><label><input type="checkbox" id="uiGrid" checked> 表示</label>
     <select id="uiGridStep"><option value="5">5mm</option><option value="10" selected>10mm</option><option value="15">15mm</option></select>
-    <input type="color" id="uiGridColor" value="#b7bfd6"/>
   </div>
-  <div class="row" id="rowPenExt">
-    <label>ペン拡張</label>
-    <label><input type="checkbox" id="uiPalm" checked> パーム除外</label>
-    <label><input type="checkbox" id="uiPressure" checked> 圧力</label>
-    <label><input type="checkbox" id="uiTilt" checked> 傾き</label>
-  </div>
-  <div class="row" id="rowTextOps" style="display:none;gap:6px">
-    <label>テキスト</label>
-    <button id="btnTextAdd">追加</button>
-    <button id="btnTextBold">太字</button>
-    <button id="btnTextIt">斜体</button>
-    <button id="btnTextDel">選択削</button>
-    <button id="btnTextBoxDel">枠削</button>
-  </div>
+  <div class="row"><label>テキスト</label><button id="btnTextAdd">追加</button></div>
 </div>
 
 <div id="wrap"><div id="stage">
   <div id="viewport">
-    <canvas id="paper"></canvas>
+    <!-- A4 sheet visual (for centering) -->
+    <div id="sheetBox"></div>
+    <canvas id="pageBg"></canvas>
+    <canvas id="grid"></canvas>
     <canvas id="guide"></canvas>
     <canvas id="paint"></canvas>
     <div class="text-layer" id="textLayer"></div>
   </div>
 </div></div>
 
-<script>
-/* ====== util ====== */
-const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
-const DPR=Math.max(1, self.devicePixelRatio||1);
+<div id="dbg" title="Alt+D">debug</div>
 
-/* ====== nodes ====== */
-const topbar=$('#topbar'), panel=$('#panel'), viewport=$('#viewport');
-const cvPaper=$('#paper'), gPaper=cvPaper.getContext('2d');
-const cvGuide=$('#guide'), gGuide=cvGuide.getContext('2d');
-const cv=$('#paint'), ctx=cv.getContext('2d',{alpha:true});
+<script>
+/* ===== Helpers ===== */
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const DPR = Math.max(1, self.devicePixelRatio||1);
+const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+function mmToPx(mm){return mm*96/25.4}
+function pxToMm(px){return px*25.4/96}
+
+/* ===== Elements ===== */
+const viewport=$('#viewport');
+const cvBg=$('#pageBg'), ctxBg=cvBg.getContext('2d');
+const cvGrid=$('#grid'), ctxGrid=cvGrid.getContext('2d');
+const cvGuide=$('#guide'), ctxGuide=cvGuide.getContext('2d');
+const cv=$('#paint'), ctx=cv.getContext('2d');
+const sheet=$('#sheetBox');
 const textLayer=$('#textLayer');
 
-/* ====== version ====== */
-$('#verText').textContent='NOTE LINK — v0.8.0 / B-REL6-HF6k';
-$('#buildText').textContent='build: HF6k';
-
-/* ====== layout (fix: canvas size independent of zoom) ====== */
-let zoom=1, panX=0, panY=0, W=0, H=0;
-function applyBars(){ const h=Math.round(topbar.getBoundingClientRect().height)||44; document.documentElement.style.setProperty('--topbar-h',h+'px'); }
-function updateViewportTransform(){ viewport.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; }
-function fitCanvases(){
-  const vr=viewport.getBoundingClientRect();
-  W=Math.max(1, Math.round(vr.width));     // ★ズームに依存しない
-  H=Math.max(1, Math.round(vr.height));    // ★ズームに依存しない
-  for(const c of [cvPaper,cvGuide,cv]){
-    c.width=Math.round(W*DPR); c.height=Math.round(H*DPR);
-    c.style.width=W+'px'; c.style.height=H+'px';
-  }
-  layoutPaper(); drawPaper(); redrawAll();
-}
-addEventListener('resize',()=>{applyBars(); fitCanvases(); updateTopbarCompact();});
-addEventListener('orientationchange',()=>{ setTimeout(()=>{applyBars(); fitCanvases(); updateTopbarCompact();}, 50); });
-applyBars();
-
-/* ====== A4 paper ====== */
-function mm2px(mm){return mm*96/25.4*DPR}
-const A4={wmm:210,hmm:297};
-let paperRect={x:0,y:0,w:0,h:0};
-function layoutPaper(){
-  const a4w=mm2px(A4.wmm), a4h=mm2px(A4.hmm);
-  const scale=Math.min(cv.width*0.65/a4w, cv.height*0.9/a4h);
-  const w=a4w*scale, h=a4h*scale;
-  paperRect={w,h,x:(cv.width-w)/2,y:(cv.height-h)/2};
-}
-let gridOn=false, gridStepMM=10, gridColor='#b7bfd6';
-function drawPaper(){
-  const g=gPaper; g.clearRect(0,0,cvPaper.width,cvPaper.height);
-  g.fillStyle='#0b1020'; g.fillRect(0,0,cvPaper.width,cvPaper.height);
-  // 背景画像（ページ毎）＋白紙
-  const pg=Pages.cur();
-  g.fillStyle='#fff'; g.fillRect(paperRect.x,paperRect.y,paperRect.w,paperRect.h);
-  if(pg.bg && pg.bg.img){ g.drawImage(pg.bg.img,paperRect.x,paperRect.y,paperRect.w,paperRect.h); }
-  if(gridOn){
-    const step=Math.max(2, Math.round(mm2px(gridStepMM)*(paperRect.h/mm2px(A4.hmm))));
-    g.save(); g.strokeStyle=gridColor+'88'; g.lineWidth=1*DPR; g.beginPath();
-    for(let y=paperRect.y+step; y<=paperRect.y+paperRect.h-step; y+=step){ g.moveTo(paperRect.x,y); g.lineTo(paperRect.x+paperRect.w,y); }
-    g.stroke(); g.restore();
-  }
-}
-
-/* ====== pages (internal only) ====== */
-const Pages={
-  list:[{strokes:[],textsHTML:'',bg:null}],
-  idx:0,
-  cur(){ return this.list[this.idx]; }
-};
-function setPage(i){
-  i=Math.max(0, Math.min(Pages.list.length-1, i));
-  // save current text html
-  Pages.cur().textsHTML=textLayer.innerHTML;
-  Pages.idx=i;
-  textLayer.innerHTML=Pages.cur().textsHTML||'';
-  updatePageIndicator(); drawPaper(); redrawAll();
-}
-function updatePageIndicator(){
-  $('#pageIndicator').textContent=(Pages.idx+1)+'/'+Pages.list.length;
-  $('#pageIndicator_m').textContent=(Pages.idx+1)+'/'+Pages.list.length;
-}
-$('#btnPrev').onclick=()=>setPage(Pages.idx-1);
-$('#btnNext').onclick=()=>setPage(Pages.idx+1);
-$('#btnPrev_m').onclick=()=>{ setPage(Pages.idx-1); toggleMore(false); };
-$('#btnNext_m').onclick=()=>{ setPage(Pages.idx+1); toggleMore(false); };
-$('#btnAddPage').onclick=()=>{ Pages.list.push({strokes:[],textsHTML:'',bg:null}); setPage(Pages.list.length-1); pushHistory(); };
-$('#btnAddPage_m').onclick=()=>{ Pages.list.push({strokes:[],textsHTML:'',bg:null}); setPage(Pages.list.length-1); toggleMore(false); pushHistory(); };
-addEventListener('keydown',e=>{
-  if(e.key==='ArrowLeft') setPage(Pages.idx-1);
-  if(e.key==='ArrowRight') setPage(Pages.idx+1);
-});
-
-/* ====== topbar compact overflow ====== */
-function updateTopbarCompact(){
-  const threshold = 860; // 縦タブレット/スマホ想定
-  const needCompact = (innerWidth < threshold) || (topbar.scrollWidth > topbar.clientWidth);
-  topbar.classList.toggle('compact', needCompact);
-}
-const morePanel=$('#morePanel'); const btnMore=$('#btnMore');
-function toggleMore(on){ morePanel.style.display=on?'block':'none'; }
-btnMore.onclick=()=>toggleMore(morePanel.style.display!=='block');
-addEventListener('click',e=>{ if(!morePanel.contains(e.target) && e.target!==btnMore) toggleMore(false); });
-
-/* ====== tools ====== */
+/* ===== State ===== */
+let zoom=1, panX=0, panY=0; // world transform
+let W=0, H=0; // logical viewport size in CSS px
 let tool='pen';
-const perTool={
-  pen:{color:'#000000',size:4,alpha:1,cap:'round',straight:false},
-  marker:{color:'#ffff00',size:16,alpha:.5,cap:'butt',straight:false},
-  eraser:{size:24}, hand:{}, keyboard:{}
-};
-let color=perTool.pen.color, size=perTool.pen.size, alpha=1, cap='round';
+const perTool={pen:{color:'#000000',size:4,alpha:1},marker:{color:'#ffff00',size:16,alpha:.5},eraser:{size:24},hand:{},keyboard:{}};
+let color=perTool.pen.color, size=perTool.pen.size, alpha=perTool.marker.alpha;
+let gridOn=true, gridStepMM=10;
 let straightToggle=false, straightKey=false;
-let palmReject=true, pressureOn=true, tiltOn=true;
+let pages=[{bg:null, strokes:[], texts:[]}];
+let pageIndex=0;
+let history=[], redo=[];
 
-function saveToolState(k){const p=perTool[k]||(perTool[k]={}); p.color=color;p.size=size;p.alpha=alpha;p.cap=cap;p.straight=!!straightToggle;}
-function loadToolState(k){const p=perTool[k]||{};color=p.color??color;size=p.size??size;alpha=p.alpha??alpha;cap=p.cap??cap;straightToggle=!!p.straight;}
-function setActiveTool(t){
+/* ===== Layout ===== */
+function applyTopbar(){ const h=Math.round($('#topbar').getBoundingClientRect().height)||46; document.documentElement.style.setProperty('--topbar-h',h+'px'); }
+function resizeCanvases(){ const r=viewport.getBoundingClientRect(); W=r.width; H=r.height; for(const c of [cvBg,cvGrid,cvGuide,cv]){ c.width=Math.round(W*DPR); c.height=Math.round(H*DPR); c.style.width=W+'px'; c.style.height=H+'px'; }
+  drawGrid(); render(); }
+function applyTransform(){ viewport.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; }
+function centerSheet(){ // keep sheet centered under transform basis
+  const r=viewport.getBoundingClientRect(); const sw=794, sh=1123; sheet.style.width=sw+'px'; sheet.style.height=sh+'px'; sheet.style.left='50%'; sheet.style.top='50%'; sheet.style.transform='translate(-50%,-50%)'; }
+
+/* ===== Zoom (center-fixed) ===== */
+function zoomAt(newZoom, cx, cy){ const rect=viewport.getBoundingClientRect(); const prev=zoom; newZoom=clamp(newZoom,0.5,3);
+  const ox = (cx - rect.left - panX) / prev; // world coords before
+  const oy = (cy - rect.top  - panY) / prev;
+  zoom = newZoom;
+  panX = cx - rect.left - ox * zoom;
+  panY = cy - rect.top  - oy * zoom;
+  applyTransform(); drawGrid(); }
+const centerPoint=()=>{ const r=viewport.getBoundingClientRect(); return {x:r.left + r.width/2, y:r.top + r.height/2}; };
+$('#btnZoomIn').onclick=()=>{ const c=centerPoint(); zoomAt(zoom+0.1, c.x, c.y); updateZoomText(); };
+$('#btnZoomOut').onclick=()=>{ const c=centerPoint(); zoomAt(zoom-0.1, c.x, c.y); updateZoomText(); };
+$('#btnZoomReset').onclick=()=>{ const c=centerPoint(); zoomAt(1, c.x, c.y); updateZoomText(); };
+function updateZoomText(){ $('#btnZoomReset').textContent=Math.round(zoom*100)+'%'; }
+
+/* ===== Grid ===== */
+function drawGrid(){ ctxGrid.clearRect(0,0,cvGrid.width,cvGrid.height); if(!gridOn) return; const step=mmToPx(gridStepMM)*DPR; const s=ctxGrid; s.save(); s.strokeStyle='#62709c55'; s.lineWidth=1; s.beginPath(); const oy=0.5*DPR; for(let y=oy;y<=cvGrid.height;y+=step){ s.moveTo(0,y); s.lineTo(cvGrid.width,y);} s.stroke(); s.restore(); }
+
+/* ===== Tool switching ===== */
+function setTool(t){
   saveToolState(tool); tool=t; loadToolState(t);
   $$('.tool').forEach(b=>b.classList.toggle('active', b.dataset.tool===t));
-  $('#panelTool').textContent=t;
-  $('#rowAlpha').style.display=(t==='marker')?'':'none';
-  $('#rowLineCap').style.display=(t==='marker'||t==='pen')?'':'none';
-  $('#rowStraight').style.display=(t==='pen'||t==='marker')?'':'none';
-  $('#rowTextOps').style.display=(t==='keyboard')?'':'none';
-  $('#rowSize').style.display=(t==='pen'||t==='marker'||t==='eraser')?'':'none';
-  $('#rowPenExt').style.display=(t==='pen'||t==='marker')?'':'none';
+  $('#panel').classList.toggle('show', false);
   syncUI();
   cv.style.cursor=(t==='hand')?'grab':'crosshair';
 }
-$('#btnSidebarToggle').onclick=()=>{ $('#sidebar').classList.toggle('collapsed'); };
-$$('.tool').forEach(btn=>{
-  if(btn.id==='btnSidebarToggle') return;
-  btn.addEventListener('click',e=>{
-    const t=btn.dataset.tool;
-    if(t==='settings'){ const show=!panel.classList.contains('show'); panel.classList.toggle('show',show); btn.classList.toggle('active',show); return; }
-    setActiveTool(t);
-  });
-});
+function saveToolState(k){const p=perTool[k]||(perTool[k]={}); p.color=color; p.size=size; if(k==='marker') p.alpha=alpha;}
+function loadToolState(k){const p=perTool[k]||{}; color=p.color ?? color; size=p.size ?? size; if(k==='marker') alpha=p.alpha ?? alpha;}
+$$('.tool').forEach(btn=>btn.addEventListener('click',()=>{ const t=btn.dataset.tool; if(t==='settings'){ $('#panel').classList.toggle('show'); return;} setTool(t);}));
 
-/* ====== panel ====== */
-(()=>{const handle=$('#panelHandle');let dragging=false,sx=0,sy=0,ox=0,oy=0,id=0;
-function down(e){ if(e.target.closest('#panelClose')) return; dragging=true; id=e.pointerId||1; try{panel.setPointerCapture(id)}catch{}; sx=e.clientX; sy=e.clientY; const r=panel.getBoundingClientRect(); ox=r.left; oy=r.top; e.preventDefault();}
-function move(e){ if(!dragging) return; const nx=ox+(e.clientX-sx),ny=oy+(e.clientY-sy); panel.style.left=Math.max(56,nx)+'px'; const top=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--topbar-h'))+6; panel.style.top=Math.max(top,ny)+'px';}
-function up(){ dragging=false; try{panel.releasePointerCapture(id)}catch{} }
-handle.addEventListener('pointerdown',down,{passive:false});
-panel.addEventListener('pointermove',move,{passive:false});
-panel.addEventListener('pointerup',up,{passive:false});
-panel.addEventListener('pointercancel',up,{passive:false});
-$('#panelClose').addEventListener('click',()=>{ panel.classList.remove('show'); $$('.tool[data-tool="settings"]').forEach(b=>b.classList.remove('active')); });
-})();
-const ui={color:$('#uiColor'),size:$('#uiSize'),alpha:$('#uiAlpha'),sizeVal:$('#uiSizeVal'),alphaVal:$('#uiAlphaVal'),cap:$('#uiCap'),straight:$('#uiStraight'),gOn:$('#uiGrid'),gStep:$('#uiGridStep'),gColor:$('#uiGridColor'),palm:$('#uiPalm'),pressure:$('#uiPressure'),tilt:$('#uiTilt')};
-function pxToMm(px){return px*25.4/96}
-function syncUI(){ui.color.value=color;ui.size.value=size;ui.sizeVal.textContent=`${size}px (${pxToMm(size).toFixed(2)} mm)`;ui.alpha.value=Math.round((tool==='marker'?alpha:0.5)*100);ui.alphaVal.textContent=Math.round((tool==='marker'?alpha:0.5)*100)+'%';ui.cap.value=cap;ui.straight.checked=straightToggle;ui.gOn.checked=gridOn;ui.gStep.value=String(gridStepMM);ui.gColor.value=gridColor;ui.palm.checked=palmReject;ui.pressure.checked=pressureOn;ui.tilt.checked=tiltOn;}
-function onPanelChange(){color=ui.color.value;size=+ui.size.value;alpha=(tool==='marker')?(+ui.alpha.value/100):alpha;ui.sizeVal.textContent=`${size}px (${pxToMm(size).toFixed(2)} mm)`;ui.alphaVal.textContent=Math.round(alpha*100)+'%';cap=ui.cap.value;straightToggle=ui.straight.checked;gridOn=ui.gOn.checked;gridStepMM=+ui.gStep.value;gridColor=ui.gColor.value;drawPaper();redrawAll();}
-Object.values(ui).forEach(el=>el.addEventListener('input',onPanelChange));
+/* ===== Panel UI ===== */
+const ui={color:$('#uiColor'), size:$('#uiSize'), alpha:$('#uiAlpha'), sizeVal:$('#uiSizeVal'), alphaVal:$('#uiAlphaVal'), straight:$('#uiStraight'), grid:$('#uiGrid'), step:$('#uiGridStep')};
+function syncUI(){ ui.color.value=color; ui.size.value=size; ui.sizeVal.textContent=`${size}px (${pxToMm(size).toFixed(2)}mm)`; ui.alpha.value=Math.round(alpha*100); ui.alphaVal.textContent=Math.round(alpha*100)+'%'; ui.straight.checked=straightToggle; ui.grid.checked=gridOn; ui.step.value=String(gridStepMM); }
+Object.values(ui).forEach(el=> el.addEventListener('input', ()=>{ color=ui.color.value; size=+ui.size.value; ui.sizeVal.textContent=`${size}px (${pxToMm(size).toFixed(2)}mm)`; alpha=+ui.alpha.value/100; ui.alphaVal.textContent=Math.round(alpha*100)+'%'; straightToggle=ui.straight.checked; gridOn=ui.grid.checked; gridStepMM=+ui.step.value; drawGrid(); }));
+$('#btnTextAdd').onclick=()=>addText();
 
-/* ====== pointer mapping (accurate with zoom) ====== */
-function pointerToCanvas(e){
-  const r=cv.getBoundingClientRect();
-  return {
-    x:(e.clientX - r.left) * (cv.width / r.width),
-    y:(e.clientY - r.top ) * (cv.height/ r.height)
-  };
+/* ===== Pages ===== */
+function pageInfo(){ $('#pageInfo').textContent=(pageIndex+1)+'/'+pages.length; }
+function addPageAt(idx){ pages.splice(idx,0,{bg:null,strokes:[],texts:[]}); pageIndex=idx; render(); pageInfo(); }
+function addPageEnd(){ addPageAt(pages.length); }
+function switchPage(i){ i=clamp(i,0,pages.length-1); if(i===pageIndex) return; pageIndex=i; render(); pageInfo(); }
+$('#btnAddPage').onclick=()=>addPageAt(pageIndex+1);
+$('#btnPrev').onclick=()=>switchPage(pageIndex-1); $('#btnNext').onclick=()=>switchPage(pageIndex+1);
+$('#overflowBtn').onclick=()=>{ const m=$('#overflowMenu'); m.style.display=(m.style.display==='block'?'none':'block'); };
+$('#omPrev').onclick=()=>{ $('#overflowMenu').style.display='none'; switchPage(pageIndex-1)};
+$('#omNext').onclick=()=>{ $('#overflowMenu').style.display='none'; switchPage(pageIndex+1)};
+$('#omAddPage').onclick=()=>{ $('#overflowMenu').style.display='none'; addPageAt(pageIndex+1)};
+$('#omSetBg').onclick=()=>{ $('#overflowMenu').style.display='none'; setBackgroundForCurrent(); };
+
+/* ===== Rendering ===== */
+function clearAll(){ ctx.clearRect(0,0,cv.width,cv.height); ctxBg.clearRect(0,0,cvBg.width,cvBg.height); ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height); }
+function fitA4InCanvas(){ // draw white A4 centered to Bg canvas
+  ctxBg.save(); ctxBg.fillStyle='#fff';
+  const r=viewport.getBoundingClientRect(); const sw=794*DPR, sh=1123*DPR; // A4@96dpi
+  // place sheetBox already centers visually; here bg canvas just cleared (white area drawn by sheetBox); background images will be drawn on cvBg aligned to sheetBox
+  ctxBg.restore(); }
+async function drawBackground(){ ctxBg.clearRect(0,0,cvBg.width,cvBg.height); // white page rectangle
+  const r=sheet.getBoundingClientRect(); const v=viewport.getBoundingClientRect();
+  const x=(r.left - v.left)*DPR, y=(r.top - v.top)*DPR, w=r.width*DPR, h=r.height*DPR;
+  // base white page
+  ctxBg.save(); ctxBg.fillStyle='#fff'; ctxBg.fillRect(x,y,w,h); ctxBg.restore();
+  const bg = pages[pageIndex].bg; if(!bg) return;
+  // draw bg image fit into A4 box
+  try{
+    const img = await loadImage(bg); const fit = fitContain(img.width, img.height, w, h);
+    ctxBg.drawImage(img, 0,0,img.width,img.height, x+fit.dx, y+fit.dy, fit.dw, fit.dh);
+  }catch(e){ console.warn('bg decode fail',e); }
 }
-function inPaperXY(x,y){ return x>=paperRect.x && y>=paperRect.y && x<=paperRect.x+paperRect.w && y<=paperRect.y+paperRect.h; }
+function fitContain(iw, ih, bw, bh){ const s=Math.min(bw/iw, bh/ih); const dw=iw*s, dh=ih*s; return {dw, dh, dx:(bw-dw)/2, dy:(bh-dh)/2}; }
+function renderStrokes(){ ctx.clearRect(0,0,cv.width,cv.height); const r=viewport.getBoundingClientRect(); const sb=sheet.getBoundingClientRect(); const offX=(sb.left - r.left)*DPR, offY=(sb.top - r.top)*DPR, w=sb.width*DPR, h=sb.height*DPR; ctx.save(); ctx.beginPath(); ctx.rect(offX,offY,w,h); ctx.clip(); ctx.restore();
+  const list=pages[pageIndex].strokes; for(const s of list){ drawStroke(ctx,s); } }
+function renderTexts(){ textLayer.innerHTML=''; const list=pages[pageIndex].texts||[]; for(const t of list){ const el=document.createElement('div'); el.className='note-text'; el.contentEditable='true'; el.style.left=t.x+'px'; el.style.top=t.y+'px'; el.textContent=t.text||'テキスト'; el.oninput=()=>{ t.text=el.textContent; pushHistory(); }; textLayer.appendChild(el);} }
+function render(){ clearAll(); fitA4InCanvas(); drawBackground(); renderStrokes(); renderTexts(); pageInfo(); }
 
-/* ====== draw (with smoothing) ====== */
-let drawing=false, panning=false, start={x:0,y:0}, last={x:0,y:0}, activeTouches=0;
-let currentStroke=null;
-function setCtx(){
-  ctx.imageSmoothingEnabled=true; ctx.miterLimit=2;
-  ctx.lineJoin='round'; ctx.lineCap=(tool==='marker'||tool==='pen')?cap:'round';
-  if(tool==='eraser'){ ctx.globalCompositeOperation='destination-out'; ctx.strokeStyle='#000'; ctx.globalAlpha=1; }
-  else if(tool==='marker'){ ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=color; ctx.globalAlpha=alpha; }
-  else { ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=color; ctx.globalAlpha=1; }
-  ctx.lineWidth=Math.max(1, Math.round(size*DPR));
-}
-function showGuide(sx,sy,ex,ey){
-  gGuide.clearRect(0,0,cvGuide.width,cvGuide.height);
-  gGuide.save(); gGuide.setLineDash([6*DPR,6*DPR]); gGuide.lineWidth=Math.max(1,Math.round(size*DPR));
-  gGuide.lineCap=cap; gGuide.strokeStyle='#7ec8ff';
-  gGuide.beginPath(); gGuide.moveTo(sx,sy); gGuide.lineTo(ex,ey); gGuide.stroke(); gGuide.restore();
-}
-function clearGuide(){ gGuide.clearRect(0,0,cvGuide.width,cvGuide.height); }
+/* ===== Image loading ===== */
+function loadImage(src){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ if(img.decode) img.decode().then(()=>res(img)).catch(()=>res(img)); else res(img); }; img.onerror=rej; img.src=src; }); }
 
-function toUV(x,y){ return {u:(x-paperRect.x)/paperRect.w, v:(y-paperRect.y)/paperRect.h}; }
-function fromUV(u,v){ return {x:paperRect.x + u*paperRect.w, y:paperRect.y + v*paperRect.h}; }
-
-function quadStroke(ctx, pts){
-  if(pts.length<2) return;
-  ctx.beginPath();
-  let p0 = pts[0];
-  ctx.moveTo(p0.x, p0.y);
-  for(let i=1;i<pts.length-1;i++){
-    const p1=pts[i], p2=pts[i+1];
-    const mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
-    ctx.quadraticCurveTo(p1.x,p1.y,mx,my);
+/* ===== Input Mapping & Drawing ===== */
+function setCtxForStroke(s){ if(s.tool==='eraser'){ ctx.globalCompositeOperation='destination-out'; ctx.globalAlpha=1; ctx.strokeStyle='#000'; }
+  else if(s.tool==='marker'){ ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=s.color; ctx.globalAlpha=0.5; }
+  else { ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=s.color; ctx.globalAlpha=1; }
+  ctx.lineWidth=s.size*DPR; ctx.lineCap='round'; ctx.lineJoin='round'; }
+function drawStroke(target, s){ target.save(); if(s.tool==='eraser'){ target.globalCompositeOperation='destination-out'; target.globalAlpha=1; target.strokeStyle='#000'; } else if(s.tool==='marker'){ target.globalCompositeOperation='source-over'; target.globalAlpha=0.5; target.strokeStyle=s.color; } else { target.globalCompositeOperation='source-over'; target.globalAlpha=1; target.strokeStyle=s.color; } target.lineWidth=s.size*DPR; target.lineCap='round'; target.lineJoin='round';
+  if(s.kind==='line'){
+    target.beginPath(); target.moveTo(s.x1, s.y1); target.lineTo(s.x2, s.y2); target.stroke();
+  }else{
+    const pts=s.pts; if(!pts||pts.length<2) return; target.beginPath(); target.moveTo(pts[0].x, pts[0].y); for(let i=1;i<pts.length-1;i++){ const p=pts[i], n=pts[i+1]; const mx=(p.x+n.x)/2, my=(p.y+n.y)/2; target.quadraticCurveTo(p.x,p.y,mx,my);} const last=pts[pts.length-1]; target.lineTo(last.x,last.y); target.stroke();
   }
-  // 最後の点まで
-  const last=pts[pts.length-1];
-  ctx.lineTo(last.x,last.y);
-  ctx.stroke();
-}
+  target.restore(); }
 
-function onDown(e){
-  if(e.pointerType==='touch') activeTouches++;
-  if(tool==='hand'){ panning=true; cv.style.cursor='grabbing'; return; }
-  // テキスト編集中は描かない
-  if(document.activeElement && document.activeElement.classList.contains('note-text')) return;
-  if($('#uiPalm').checked && e.pointerType==='touch' && activeTouches>1){ return; }
-  const p=pointerToCanvas(e); if(!inPaperXY(p.x,p.y)) return;
-  e.preventDefault(); try{cv.setPointerCapture(e.pointerId)}catch{}
-  drawing=true; start=last=p; clearGuide();
+// pointer mapping inside sheet
+function pt(e){ const vr=viewport.getBoundingClientRect(); const sr=sheet.getBoundingClientRect(); const x=((e.clientX - vr.left) - (sr.left - vr.left)) * DPR; const y=((e.clientY - vr.top)  - (sr.top  - vr.top )) * DPR; return {x, y}; }
 
-  // start new stroke
-  currentStroke={tool:(tool==='marker'?'marker':tool==='eraser'?'eraser':'pen'),
-    color:(tool==='marker'||tool==='pen')?color:'#000000', alpha:(tool==='marker')?alpha:1, cap:cap,
-    sizeU:(size/paperRect.h), pts:[toUV(p.x,p.y)],
-    _buf:[p]  // 画面用座標のバッファ（スムージング描画用）
-  };
-}
-function onMove(e){
-  if(tool==='hand' && panning){ panX+=e.movementX||0; panY+=e.movementY||0; updateViewportTransform(); return; }
-  if(!drawing) return;
-  const straight=(straightKey||$('#uiStraight').checked);
-  const p=pointerToCanvas(e);
-  if(straight){ showGuide(start.x,start.y,p.x,p.y); return; }
+// Palm reject
+let penActive=false, penId=null, touchCount=0;
+function shouldReject(e){ if(e.pointerType==='pen') return false; if(penActive) return true; if(e.pointerType==='touch' && touchCount>=1) return true; return false; }
 
-  const list=(e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
-  const pts=[];
-  for(const ev of list){
-    const q=pointerToCanvas(ev);
-    if(!inPaperXY(q.x,q.y)) continue;
-    currentStroke.pts.push(toUV(q.x,q.y));
-    pts.push(q);
-  }
-  if(!pts.length) return;
+let drawing=false, straight=false, start=null, last=null, curStroke=null;
+cv.addEventListener('pointerdown', (e)=>{ if(e.pointerType==='touch') touchCount++; if(shouldReject(e)) return; if(tool==='hand'){ cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing'; panning=true; panLast={x:e.clientX,y:e.clientY}; return; }
+  if(e.pointerType==='pen'){ penActive=true; penId=e.pointerId; }
+  e.preventDefault(); cv.setPointerCapture(e.pointerId);
+  straight = !!straightKey || straightToggle;
+  start = toCanvas(pt(e)); last = start; drawing=true; curStroke = { tool, color:(tool==='marker'? (perTool.marker.color||'#ffff00') : color), size:(tool==='marker'? perTool.marker.size : size), kind: (straight? 'line' : 'path'), pts: straight? null : [start], x1:null,y1:null,x2:null,y2:null };
+  if(straight){ ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height); }
+  pushHistory();
+},{passive:false});
 
-  // スムージング描画：前回の末尾 + 今回の新点列で二次ベジェ
-  setCtx();
-  const all = currentStroke._buf.concat(pts);
-  quadStroke(ctx, all.slice(-Math.min(all.length, 24))); // 直近のみで描画して負荷軽減
-  currentStroke._buf = all.slice(-12); // バッファ保持点数
-  last=pts[pts.length-1];
-}
-function onUp(e){
-  if(e.pointerType==='touch') activeTouches=Math.max(0,activeTouches-1);
-  if(tool==='hand' && panning){ panning=false; cv.style.cursor='grab'; return; }
-  if(!drawing){ clearGuide(); return; }
-  const p=pointerToCanvas(e);
-  const straight=(straightKey||$('#uiStraight').checked);
-  if(straight){
-    setCtx(); ctx.beginPath(); ctx.moveTo(start.x,start.y); ctx.lineTo(p.x,p.y); ctx.stroke();
-    currentStroke.pts.push(toUV(p.x,p.y));
-  }
-  drawing=false; clearGuide();
-  if(currentStroke && currentStroke.pts.length>1){ Pages.cur().strokes.push(currentStroke); pushHistory(); }
-  currentStroke=null;
-}
-cv.addEventListener('pointerdown',onDown,{passive:false});
-cv.addEventListener('pointermove',onMove,{passive:false});
-cv.addEventListener('pointerup',onUp,{passive:false});
-cv.addEventListener('pointercancel',onUp,{passive:false});
-addEventListener('keydown',e=>{ if(e.key==='Shift') straightKey=true; });
-addEventListener('keyup',e=>{ if(e.key==='Shift') straightKey=false; });
+function toCanvas(p){ // clamp to A4
+  const sr=sheet.getBoundingClientRect(); const vr=viewport.getBoundingClientRect(); const offX=(sr.left - vr.left)*DPR, offY=(sr.top - vr.top)*DPR; const w=sr.width*DPR, h=sr.height*DPR; const x=clamp(p.x,0,w), y=clamp(p.y,0,h); return {x:offX+x, y:offY+y}; }
 
-function redrawAll(){
-  ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.save(); ctx.beginPath(); ctx.rect(paperRect.x,paperRect.y,paperRect.w,paperRect.h); ctx.clip();
-  for(const st of Pages.cur().strokes){
-    const w=st.sizeU*paperRect.h;
-    ctx.imageSmoothingEnabled=true; ctx.miterLimit=2;
-    ctx.lineJoin='round'; ctx.lineCap=st.cap||'round';
-    ctx.globalCompositeOperation=(st.tool==='eraser')?'destination-out':'source-over';
-    ctx.globalAlpha=(st.tool==='marker')?(st.alpha??0.5):1.0;
-    ctx.strokeStyle=(st.tool==='pen'||st.tool==='marker')?(st.color||'#000'):'#000';
-    ctx.lineWidth=Math.max(1,Math.round(w));
-    // 平滑化して再描画
-    const pts=st.pts.map(p=>fromUV(p.u,p.v));
-    quadStroke(ctx, pts);
-  }
-  ctx.restore();
-}
+cv.addEventListener('pointermove', (e)=>{
+  if(tool==='hand' && panning){ if(!panLast){panLast={x:e.clientX,y:e.clientY}} const dx=e.clientX-panLast.x, dy=e.clientY-panLast.y; panX+=dx; panY+=dy; panLast={x:e.clientX,y:e.clientY}; applyTransform(); return; }
+  if(!drawing) return; const list=(e.getCoalescedEvents && e.getCoalescedEvents())||[e]; if(straight){ const p=toCanvas(pt(e)); ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height); ctxGuide.save(); ctxGuide.strokeStyle='#7ec8ff'; ctxGuide.lineWidth=(curStroke.size||size)*DPR; ctxGuide.setLineDash([6*DPR,6*DPR]); ctxGuide.beginPath(); ctxGuide.moveTo(start.x,start.y); ctxGuide.lineTo(p.x,p.y); ctxGuide.stroke(); ctxGuide.restore(); last=p; }
+  else{ for(const ev of list){ const p=toCanvas(pt(ev)); curStroke.pts.push(p); last=p; } ctx.save(); setCtxForStroke(curStroke); // incremental draw for feedback
+    const pts=curStroke.pts; const L=pts.length; if(L>=3){ const p=pts[L-2], n=pts[L-1]; const mx=(p.x+n.x)/2, my=(p.y+n.y)/2; ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.quadraticCurveTo(p.x,p.y,mx,my); ctx.stroke(); } else if(L===2){ ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y); ctx.lineTo(pts[1].x,pts[1].y); ctx.stroke(); }
+    ctx.restore(); }
+},{passive:true});
 
-/* ====== text ====== */
-function addText(){const el=document.createElement('div');el.className='note-text';el.contentEditable='true';
-  el.style.left=(paperRect.x/DPR+20)+'px'; el.style.top=(paperRect.y/DPR+20)+'px'; el.textContent='テキスト';
-  const del=document.createElement('button');del.className='del';del.textContent='削除';del.addEventListener('click',()=>el.remove());
-  el.appendChild(del); textLayer.appendChild(el); el.focus(); pushHistory();
-  el.addEventListener('focusin',()=>{ cv.style.pointerEvents='none'; textLayer.style.touchAction='manipulation'; });
-  el.addEventListener('focusout', ()=>{ cv.style.pointerEvents='auto'; textLayer.style.touchAction='none'; Pages.cur().textsHTML=textLayer.innerHTML; pushHistory(); });
-  el.addEventListener('pointerdown',e=>e.stopPropagation());
-}
-$('#btnTextAdd').onclick=addText;
-$('#btnTextBold').onclick=()=>document.execCommand('bold',false,null);
-$('#btnTextIt').onclick=()=>document.execCommand('italic',false,null);
-$('#btnTextDel').onclick=()=>document.execCommand('delete',false,null);
-$('#btnTextBoxDel').onclick=()=>{const sel=window.getSelection();if(!sel.rangeCount)return;let el=sel.anchorNode;while(el&&!(el instanceof HTMLElement&&el.classList.contains('note-text')))el=el.parentNode;if(el)el.remove();};
+cv.addEventListener('pointerup', (e)=>{
+  if(e.pointerType==='touch') touchCount=Math.max(0,touchCount-1);
+  if(tool==='hand' && panning){ panning=false; cv.style.cursor='grab'; panLast=null; return; }
+  if(!drawing){ ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height); return; }
+  if(straight){ const p=toCanvas(pt(e)); curStroke.x1=start.x; curStroke.y1=start.y; curStroke.x2=p.x; curStroke.y2=p.y; ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height); pages[pageIndex].strokes.push(curStroke); renderStrokes(); }
+  else{ pages[pageIndex].strokes.push(curStroke); }
+  drawing=false; curStroke=null; if(e.pointerType==='pen' && e.pointerId===penId){ penActive=false; penId=null; }
+},{passive:true});
+cv.addEventListener('pointercancel',()=>{ drawing=false; curStroke=null; ctxGuide.clearRect(0,0,cvGuide.width,cvGuide.height); });
+addEventListener('keydown',e=>{ if(e.key==='Shift') straightKey=true; }); addEventListener('keyup',e=>{ if(e.key==='Shift') straightKey=false; });
 
-/* ====== output ====== */
-function composite(){
-  const out=document.createElement('canvas'); out.width=cv.width; out.height=cv.height; const o=out.getContext('2d');
-  o.drawImage(cvPaper,0,0); o.drawImage(cv,0,0);
-  [...textLayer.querySelectorAll('.note-text')].forEach(n=>{
-    const r=n.getBoundingClientRect(), L=textLayer.getBoundingClientRect();
-    const x=((r.left-L.left)*(cv.width/(L.width||1))), y=((r.top-L.top)*(cv.height/(L.height||1)));
-    o.fillStyle='#111'; o.font=(16*DPR)+'px system-ui'; o.fillText(n.textContent.replace(/削除$/,''),x,y+16*DPR);
-  });
-  return out;
+// Pan (hand)
+let panning=false, panLast=null;
+
+/* ===== Text ===== */
+function addText(){ const sr=sheet.getBoundingClientRect(); const vr=viewport.getBoundingClientRect(); const x= (sr.left - vr.left) + 40; const y= (sr.top - vr.top) + 40; const el=document.createElement('div'); el.className='note-text'; el.contentEditable='true'; el.style.left=x+'px'; el.style.top=y+'px'; el.textContent='テキスト'; const model={x, y, text:'テキスト'}; pages[pageIndex].texts.push(model); el.oninput=()=>{ model.text=el.textContent; pushHistory(); }; textLayer.appendChild(el); el.focus(); }
+
+/* ===== Undo/Redo ===== */
+function snapshot(){ return JSON.stringify({pages, pageIndex}); }
+function restore(json){ const obj=JSON.parse(json); pages=obj.pages; pageIndex=obj.pageIndex||0; render(); }
+function pushHistory(){ history.push(snapshot()); if(history.length>50) history.shift(); redo.length=0; }
+$('#btnUndo').onclick=()=>{ const prev=history.pop(); if(!prev) return; redo.push(snapshot()); restore(prev); };
+$('#btnRedo').onclick=()=>{ const nxt=redo.pop(); if(!nxt) return; history.push(snapshot()); restore(nxt); };
+
+/* ===== Save/Load ===== */
+async function saveFile(){ const data=snapshot(); const blob=new Blob([data],{type:'application/json'}); if('showSaveFilePicker' in window){ try{ const handle=await window.showSaveFilePicker({suggestedName:'note-link.json',types:[{description:'Note Link JSON',accept:{'application/json':['.json']}}]}); const w=await handle.createWritable(); await w.write(blob); await w.close(); }catch(e){ fallback(); } } else fallback(); function fallback(){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='note-link.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),800); } }
+async function loadFile(){ try{ let file=null; if('showOpenFilePicker' in window){ const [h]=await window.showOpenFilePicker({types:[{description:'Note Link JSON',accept:{'application/json':['.json']}}]}); file=await h.getFile(); } else { const i=document.createElement('input'); i.type='file'; i.accept='.json,application/json'; const p=new Promise(r=>i.onchange=()=>r(i.files[0]||null)); i.click(); file=await p; } if(!file) return; const txt=await file.text(); restore(txt); // ensure bg decoded
+  await drawBackground(); renderStrokes(); }
+  catch(e){ alert('読み込み失敗: '+e.message); }
 }
-$('#btnPng').onclick=()=>composite().toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='note-link.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),800)});
+$('#btnSave').onclick=saveFile; $('#btnLoad').onclick=loadFile;
+
+/* ===== Images ===== */
+async function pickImage(){ return new Promise((res)=>{ const i=document.createElement('input'); i.type='file'; i.accept='image/*'; i.onchange=()=>{ const f=i.files&&i.files[0]; if(!f){res(null);return;} const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(f); }; i.click(); }); }
+async function addImageAsPage(mode){ const data=await pickImage(); if(!data) return; if(mode==='append'){ addPageEnd(); } else if(mode==='insert'){ addPageAt(pageIndex+1); } pages[pageIndex].bg=data; render(); }
+async function setBackgroundForCurrent(){ const data=await pickImage(); if(!data) return; pages[pageIndex].bg=data; await drawBackground(); }
+$('#btnAddImg').onclick=()=>addImageAsPage('append'); $('#btnInsertImg').onclick=()=>addImageAsPage('insert');
+
+/* ===== Output PNG / Print / Share ===== */
+function compositeCanvas(){ const out=document.createElement('canvas'); out.width=cv.width; out.height=cv.height; const o=out.getContext('2d'); // paint bg (pageBg already has white + background image)
+  o.drawImage(cvBg,0,0); o.drawImage(cv,0,0); // texts (rough)
+  [...textLayer.children].forEach(n=>{ const r=n.getBoundingClientRect(), L=textLayer.getBoundingClientRect(); const x=((r.left-L.left)*DPR), y=((r.top-L.top)*DPR)+16; o.fillStyle='#111'; o.font=(16*DPR)+'px system-ui'; o.fillText(n.textContent.trim(),x,y); }); return out; }
+$('#btnPng').onclick=()=>compositeCanvas().toBlob(b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='note-link.png'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),800); });
 $('#btnPrint').onclick=()=>window.print();
-$('#btnShare').onclick=()=>{composite().toBlob(async b=>{const f=new File([b],'note.png',{type:'image/png'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Note Link'})}catch(e){}}else{const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='note-link.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),800)}})};
+$('#btnShare').onclick=()=>{ compositeCanvas().toBlob(async b=>{ const f=new File([b],'note.png',{type:'image/png'}); if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f],title:'Note Link'});}catch(e){} } else { const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='note-link.png'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),800); } }); };
 
-/* ====== save/load (JSON, pages+bg) ====== */
-let fileHandle=null;
-function exportJSON(){
-  // 現在のテキストを反映
-  Pages.cur().textsHTML=textLayer.innerHTML;
-  return JSON.stringify({
-    v:'HF6k',
-    pages: Pages.list.map(pg=>({strokes:pg.strokes||[],textsHTML:pg.textsHTML||'', bg:pg.bg && pg.bg.dataURL ? {dataURL:pg.bg.dataURL}:null})),
-    idx: Pages.idx,
-    grid:{on:gridOn,stepMM:gridStepMM,color:gridColor}
-  });
-}
-async function doSave(){
-  const blob=new Blob([exportJSON()],{type:'application/json'});
-  try{
-    if('showSaveFilePicker' in window){
-      if(!fileHandle){
-        fileHandle=await window.showSaveFilePicker({suggestedName:'note-link.json',types:[{description:'Note Link JSON',accept:{'application/json':['.json']}}]});
-      }
-      const w=await fileHandle.createWritable(); await w.write(blob); await w.close();
-    }else{
-      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='note-link.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),800);
-    }
-  }catch(e){}
-}
-async function doLoad(){
-  try{
-    let f=null;
-    if('showOpenFilePicker' in window){
-      const [h]=await window.showOpenFilePicker({types:[{description:'Note Link JSON',accept:{'application/json':['.json']}}]});
-      f=await h.getFile(); fileHandle=h;
-    }else{
-      const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
-      f=await new Promise(res=>{ inp.onchange=()=>res(inp.files[0]); inp.click(); });
-    }
-    const txt=await f.text(); const data=JSON.parse(txt);
-    Pages.list=(data.pages||[]).map(pg=>{ const entry={strokes:pg.strokes||[],textsHTML:pg.textsHTML||'',bg:null};
-      if(pg.bg && pg.bg.dataURL){ const img=new Image(); img.src=pg.bg.dataURL; entry.bg={dataURL:pg.bg.dataURL,img}; }
-      return entry;
-    });
-    if(!Pages.list.length) Pages.list=[{strokes:[],textsHTML:'',bg:null}];
-    Pages.idx=Math.max(0,Math.min(Pages.list.length-1,data.idx||0));
-    gridOn=!!data.grid?.on; gridStepMM=data.grid?.stepMM||10; gridColor=data.grid?.color||'#b7bfd6';
-    textLayer.innerHTML=Pages.cur().textsHTML||'';
-    updatePageIndicator(); drawPaper(); redrawAll(); pushHistory();
-  }catch(e){}
-}
-$('#btnSave').onclick=doSave; $('#btnLoad').onclick=doLoad;
+/* ===== Init ===== */
+function boot(){ applyTopbar(); centerSheet(); resizeCanvases(); applyTransform(); setTool('pen'); syncUI(); pageInfo(); }
+addEventListener('resize',()=>{ applyTopbar(); resizeCanvases(); });
+addEventListener('orientationchange',()=>setTimeout(()=>{ applyTopbar(); resizeCanvases(); },80));
 
-/* ====== image add/insert (fit into paper) ====== */
-async function pickImage(){
-  try{
-    if('showOpenFilePicker' in window){
-      const [h]=await window.showOpenFilePicker({types:[{description:'JPEG/PNG',accept:{'image/*':['.jpg','.jpeg','.png']}}]});
-      return await h.getFile();
-    }else{
-      const inp=document.createElement('input'); inp.type='file'; inp.accept='image/jpeg,image/png';
-      return await new Promise(res=>{ inp.onchange=()=>res(inp.files[0]); inp.click(); });
-    }
-  }catch(e){ return null; }
-}
-function fitImageToPaper(img){
-  const off=document.createElement('canvas'); off.width=Math.round(paperRect.w); off.height=Math.round(paperRect.h);
-  const o=off.getContext('2d');
-  const sc=Math.min(off.width/img.naturalWidth, off.height/img.naturalHeight);
-  const w=img.naturalWidth*sc, h=img.naturalHeight*sc, x=(off.width-w)/2, y=(off.height-h)/2;
-  o.fillStyle='#fff'; o.fillRect(0,0,off.width,off.height); o.drawImage(img,x,y,w,h);
-  const dataURL=off.toDataURL('image/jpeg',0.9); const fitted=new Image(); fitted.src=dataURL;
-  return {dataURL, img:fitted};
-}
-async function addImage(mode){ // 'append'|'insert'
-  const file=await pickImage(); if(!file) return;
-  const tmp=new Image(); tmp.src=URL.createObjectURL(file);
-  await new Promise(r=>{ tmp.onload=r; tmp.onerror=r; });
-  const bg=fitImageToPaper(tmp); URL.revokeObjectURL(tmp.src);
-  if(mode==='append'){ Pages.list.push({strokes:[],textsHTML:'',bg}); setPage(Pages.list.length-1); }
-  else { const pos=Pages.idx+1; Pages.list.splice(pos,0,{strokes:[],textsHTML:'',bg}); setPage(pos); }
-  pushHistory();
-}
-async function setCurrentBackground(){
-  const file=await pickImage(); if(!file) return;
-  const tmp=new Image(); tmp.src=URL.createObjectURL(file);
-  await new Promise(r=>{ tmp.onload=r; tmp.onerror=r; });
-  const bg=fitImageToPaper(tmp); URL.revokeObjectURL(tmp.src);
-  Pages.cur().bg=bg; drawPaper(); redrawAll(); pushHistory();
-}
-$('#btnImgAppend').onclick=()=>addImage('append');
-$('#btnImgInsert').onclick=()=>addImage('insert');
-$('#btnSetBg_m').onclick=()=>{ setCurrentBackground(); toggleMore(false); };
+// debug chip toggles overflow menu for quick check
+$('#dbg').onclick=()=>{ const m=$('#overflowMenu'); m.style.display=(m.style.display==='block'?'none':'block'); };
+addEventListener('keydown',e=>{ if(e.altKey && (e.key==='d'||e.key==='D')) $('#dbg').click(); if(e.key==='ArrowLeft') $('#btnPrev').click(); if(e.key==='ArrowRight') $('#btnNext').click(); });
 
-/* ====== undo/redo ====== */
-const hist=[], redoStack=[];
-function snapshot(){ return {pages:JSON.parse(JSON.stringify(Pages.list.map(p=>({strokes:p.strokes,textsHTML:p.textsHTML,bg:p.bg?{dataURL:p.bg.dataURL}:null})))), idx:Pages.idx, grid:{on:gridOn,step:gridStepMM,color:gridColor}}; }
-function pushHistory(){ hist.push(snapshot()); if(hist.length>40) hist.shift(); redoStack.length=0; updatePageIndicator(); }
-function restoreSnap(s){
-  Pages.list=s.pages.map(pg=>{ const entry={strokes:pg.strokes||=[],textsHTML:pg.textsHTML||'',bg:null}; if(pg.bg&&pg.bg.dataURL){ const img=new Image(); img.src=pg.bg.dataURL; entry.bg={dataURL:pg.bg.dataURL,img}; } return entry; });
-  Pages.idx=Math.max(0,Math.min(Pages.list.length-1,s.idx||0));
-  gridOn=s.grid.on; gridStepMM=s.grid.step; gridColor=s.grid.color;
-  textLayer.innerHTML=Pages.cur().textsHTML||''; updatePageIndicator(); drawPaper(); redrawAll();
-}
-$('#btnUndo').onclick=()=>{ if(!hist.length) return; const cur=snapshot(); const prev=hist.pop(); redoStack.push(cur); restoreSnap(prev); };
-$('#btnRedo').onclick=()=>{ const nxt=redoStack.pop(); if(!nxt) return; hist.push(snapshot()); restoreSnap(nxt); };
-
-/* ====== zoom (anchor at viewport center, correct for translate-before-scale) ====== */
-function setZoom(z1){
-  const z0=zoom; z1=Math.max(0.6,Math.min(3,z1));
-  const vr=viewport.getBoundingClientRect();
-  const Cx=vr.width/2, Cy=vr.height/2; // 要素内中心（ローカル）
-  // 変換順: translate -> scale なので、 p1 = p0 + C*(1/z1 - 1/z0)
-  panX = panX + Cx*(1/z1 - 1/z0);
-  panY = panY + Cy*(1/z1 - 1/z0);
-  zoom=z1;
-  updateViewportTransform();
-  $('#btnZoomReset').textContent=Math.round(zoom*100)+'%';
-}
-$('#btnZoomIn').onclick = ()=>setZoom(zoom+0.1);
-$('#btnZoomOut').onclick= ()=>setZoom(zoom-0.1);
-$('#btnZoomReset').onclick=()=>setZoom(1);
-
-/* ====== boot ====== */
-function boot(){
-  updateTopbarCompact();
-  updateViewportTransform();
-  fitCanvases();
-  setActiveTool('pen');
-  panel.classList.remove('show'); $$('.tool[data-tool="settings"]').forEach(b=>b.classList.remove('active'));
-  pushHistory();
-}
 boot();
 </script>
-</body>
-</html>
+</body></html>
