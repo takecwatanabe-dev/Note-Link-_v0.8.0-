@@ -2,13 +2,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NOTE LINK — v0.8.0 / B-REL6-L</title>
+<title>NOTE LINK — v0.8.0 / B-REL6-M</title>
 <!--
-PATCH: 2025-09-28 07:15 JST / VERSION HF6L
+PATCH: 2025-09-28 07:42 JST / VERSION HF6M
 CHANGES:
-  - Header center rail discoverability: edge fade, first-time "⇠ スライド ⇢" badge, hover thin scrollbar
-  - Overflow/position-aware fade visibility
-  - Keeps HF6K wheel/drag horizontal scrolling behavior
+  - Move fades/hint outside the scroll area (rail-wrap) so they stay fixed
+  - Thinner header scrollbar on PC hover (4px). Firefox stays "thin"
 -->
 <style>
 :root{
@@ -21,7 +20,7 @@ html,body{
   height:100%;margin:0;background:var(--bg);color:var(--ink);
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
   -webkit-user-select:none;user-select:none;
-  overflow-x:hidden; /* ページ全体の横スクロールは禁止 */
+  overflow-x:hidden;
 }
 header.topbar{
   position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topbar-h);
@@ -29,13 +28,16 @@ header.topbar{
   background:linear-gradient(0deg,rgba(42,84,255,.16),rgba(42,84,255,.16)),var(--accent);
   border-bottom:1px solid #ffffff26; white-space:nowrap;
   padding-top:env(safe-area-inset-top);
-  overflow:hidden; /* ヘッダ自体ははみ出さない */
+  overflow:hidden;
 }
 .topbar .brand{flex:0 0 auto;font-weight:700}
+
+/* ==== wrap（固定フェードの基準） ==== */
+.topbar .rail-wrap{ position:relative; flex:1 1 auto; min-width:40px; }
+
+/* 中央：横スクロール領域 */
 .topbar .rail-scroll{
-  /* 中央：横スクロール可能なレール（PC/タブレット/スマホで共通） */
-  position:relative; /* フェード/ヒント基準（HF6L） */
-  flex:1 1 auto; min-width:40px;
+  flex:1 1 auto;
   overflow-x:auto; overflow-y:hidden;
   display:flex; align-items:center; gap:8px;
   white-space:nowrap;
@@ -51,36 +53,19 @@ header.topbar{
 .topbar .btn:active{transform:translateY(1px)}
 .build{opacity:.8}
 
-/* ==== HF6L: rail の視覚ヒント ==== */
-/* 左右エッジのフェード（“先がある”ことを示す） */
-.topbar .rail-scroll::before,
-.topbar .rail-scroll::after{
-  content:"";
-  position:absolute; top:0; bottom:0; width:28px;
-  pointer-events:none; opacity:0; transition:opacity .2s;
+/* ==== 固定フェード（wrap に固定、流れない） ==== */
+.rail-fade{
+  position:absolute; top:0; bottom:0; width:28px; pointer-events:none;
+  opacity:0; transition:opacity .2s;
 }
-.topbar .rail-scroll::before{
-  left:0; background:linear-gradient(to right, rgba(0,0,0,.35), rgba(0,0,0,0));
-}
-.topbar .rail-scroll::after{
-  right:0; background:linear-gradient(to left, rgba(0,0,0,.35), rgba(0,0,0,0));
-}
-/* オーバーフローがある時のみフェードを出す。位置に応じて片側OFF */
-.topbar .rail-scroll.can-overflow:not(.at-start)::before{ opacity:.9; }
-.topbar .rail-scroll.can-overflow:not(.at-end)::after{ opacity:.9; }
-.topbar .rail-scroll.can-overflow.at-start::before{ opacity:0; }
-.topbar .rail-scroll.can-overflow.at-end::after{ opacity:0; }
+.rail-fade.left { left:0;  background:linear-gradient(to right, rgba(0,0,0,.35), rgba(0,0,0,0)); }
+.rail-fade.right{ right:0; background:linear-gradient(to left,  rgba(0,0,0,.35), rgba(0,0,0,0)); }
 
-/* PCホバー時のみ薄いスクロールバーを露出（気づきやすさUP） */
-@media (hover:hover){
-  .topbar .rail-scroll:hover{ scrollbar-width:thin; }
-  .topbar .rail-scroll:hover::-webkit-scrollbar{ height:6px; }
-  .topbar .rail-scroll:hover::-webkit-scrollbar-thumb{
-    background:#ffffff66; border-radius:6px;
-  }
-}
+/* オーバーフロー時のみ表示。位置に応じて片側OFF（wrapに付与） */
+.rail-wrap.can-overflow:not(.at-start) .rail-fade.left{  opacity:.9; }
+.rail-wrap.can-overflow:not(.at-end)   .rail-fade.right{ opacity:.9; }
 
-/* 最初だけ表示する“スライド”ヒントバッジ */
+/* 初回だけ表示する“スライド”ヒント（wrap中央に固定） */
 .rail-hint{
   position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
   background:#0009; color:#fff; padding:2px 8px; border-radius:12px;
@@ -94,9 +79,17 @@ header.topbar{
   50%    { transform:translate(-50%,-50%) scale(1.06); }
 }
 
+/* PCホバー時のみ薄いスクロールバーを露出（さらに細く 4px） */
+@media (hover:hover){
+  .topbar .rail-scroll:hover{ scrollbar-width:thin; scrollbar-color:#ffffff66 transparent; }
+  .topbar .rail-scroll:hover::-webkit-scrollbar{ height:4px; }
+  .topbar .rail-scroll:hover::-webkit-scrollbar-thumb{
+    background:#ffffff66; border-radius:6px;
+  }
+}
+
 #wrap{position:relative;height:100%;padding-top:var(--topbar-h)}
 #stage{position:absolute;inset:0;padding-left:var(--toolbar-w)}
-/* ズームの基点は左上 */
 #viewport{position:absolute;inset:0;transform-origin:0 0;touch-action:none}
 
 .sidebar{position:fixed;z-index:1500;left:0;top:var(--topbar-h);bottom:0;width:var(--toolbar-w);
@@ -152,35 +145,39 @@ header.topbar{
 <body>
 <header class="topbar" id="topbar">
   <!-- 左：固定表示 -->
-  <div class="brand"><strong id="verText">NOTE LINK — V0.8.0 / B-REL6-L</strong></div>
+  <div class="brand"><strong id="verText">NOTE LINK — V0.8.0 / B-REL6-M</strong></div>
 
-  <!-- 中央：横スクロール可能なレール -->
-  <div class="rail-scroll" id="railScroll">
-    <button class="btn" id="btnImgAppend">画像追加</button>
-    <button class="btn" id="btnImgInsert">画像挿入</button>
-    <button class="btn" id="btnLoad">読み込み</button>
-    <button class="btn" id="btnSave">保存</button>
+  <!-- 中央：wrap（固定フェード）+ scroll内ボタン -->
+  <div class="rail-wrap" id="railWrap">
+    <div class="rail-scroll" id="railScroll">
+      <button class="btn" id="btnImgAppend">画像追加</button>
+      <button class="btn" id="btnImgInsert">画像挿入</button>
+      <button class="btn" id="btnLoad">読み込み</button>
+      <button class="btn" id="btnSave">保存</button>
 
-    <button class="btn" id="btnZoomOut">−</button>
-    <button class="btn" id="btnZoomReset">100%</button>
-    <button class="btn" id="btnZoomIn">＋</button>
+      <button class="btn" id="btnZoomOut">−</button>
+      <button class="btn" id="btnZoomReset">100%</button>
+      <button class="btn" id="btnZoomIn">＋</button>
 
-    <button class="btn" id="btnUndo">undo</button>
-    <button class="btn" id="btnRedo">redo</button>
-    <button class="btn" id="btnPrint">印刷</button>
-    <button class="btn" id="btnPng">PNG</button>
-    <button class="btn" id="btnShare">共有</button>
+      <button class="btn" id="btnUndo">undo</button>
+      <button class="btn" id="btnRedo">redo</button>
+      <button class="btn" id="btnPrint">印刷</button>
+      <button class="btn" id="btnPng">PNG</button>
+      <button class="btn" id="btnShare">共有</button>
 
-    <span class="page-nav">
-      <button class="btn" id="btnPrev">◀︎ 前</button>
-      <span id="pageIndicator">1/1</span>
-      <button class="btn" id="btnNext">次 ▶︎</button>
-    </span>
+      <span class="page-nav">
+        <button class="btn" id="btnPrev">◀︎ 前</button>
+        <span id="pageIndicator">1/1</span>
+        <button class="btn" id="btnNext">次 ▶︎</button>
+      </span>
 
-    <span class="build" id="buildText">BUILD: HF6L</span>
+      <span class="build" id="buildText">BUILD: HF6M</span>
+    </div>
 
-    <!-- HF6L: “スライド”視覚ヒント（初回のみ表示） -->
+    <!-- 固定ヒント／固定フェード -->
     <div id="railHint" class="rail-hint" aria-hidden="true">⇠ スライド ⇢</div>
+    <div class="rail-fade left"  aria-hidden="true"></div>
+    <div class="rail-fade right" aria-hidden="true"></div>
   </div>
 
   <!-- 右：固定 -->
@@ -283,13 +280,12 @@ const cv=$('#paint'), ctx=cv.getContext('2d',{alpha:true});
 const textLayer=$('#textLayer');
 
 /* version */
-$('#verText').textContent='NOTE LINK — V0.8.0 / B-REL6-L';
-$('#buildText').textContent='BUILD: HF6L';
+$('#verText').textContent='NOTE LINK — V0.8.0 / B-REL6-M';
+$('#buildText').textContent='BUILD: HF6M';
 
 /* layout */
 let zoom=1, panX=0, panY=0, W=0, H=0;
 function applyBars(){ const h=Math.round(topbar.getBoundingClientRect().height)||44; document.documentElement.style.setProperty('--topbar-h',h+'px'); }
-/* ズーム：中央基準維持（scale→translate, origin 0 0） */
 function updateViewportTransform(){
   const tx=panX/zoom, ty=panY/zoom;
   viewport.style.transform=`scale(${zoom}) translate(${tx}px,${ty}px)`;
@@ -305,9 +301,7 @@ function fitCanvases(){
   layoutPaper(); drawPaper(); redrawAll();
 }
 addEventListener('resize',()=>{applyBars(); fitCanvases();});
-if (window.visualViewport){
-  visualViewport.addEventListener('resize', ()=>{ applyBars(); fitCanvases(); });
-}
+if (window.visualViewport){ visualViewport.addEventListener('resize', ()=>{ applyBars(); fitCanvases(); }); }
 addEventListener('orientationchange', ()=>{ applyBars(); fitCanvases(); });
 applyBars();
 
@@ -355,7 +349,7 @@ $('#btnPrev_m').onclick=()=>{ setPage(Pages.idx-1); toggleMore(false); };
 $('#btnNext_m').onclick=()=>{ setPage(Pages.idx+1); toggleMore(false); };
 addEventListener('keydown',e=>{ if(e.key==='ArrowLeft') setPage(Pages.idx-1); if(e.key==='ArrowRight') setPage(Pages.idx+1); });
 
-/* topbar overflow panel */
+/* more panel */
 const morePanel=$('#morePanel'); const btnMore=$('#btnMore');
 function toggleMore(on){ morePanel.style.display=on?'block':'none'; }
 btnMore.onclick=()=>toggleMore(morePanel.style.display!=='block');
@@ -549,7 +543,7 @@ $('#btnShare').onclick=()=>{composite().toBlob(async b=>{const f=new File([b],'n
 let fileHandle=null;
 function exportJSON(){
   return JSON.stringify({
-    v:'HF6l',
+    v:'HF6m',
     pages: Pages.list.map(pg=>({strokes:pg.strokes||[],textsHTML:pg.textsHTML||'', bg:pg.bg && pg.bg.dataURL ? {dataURL:pg.bg.dataURL}:null})),
     idx: Pages.idx,
     grid:{on:gridOn,stepMM:gridStepMM,color:gridColor}
@@ -664,68 +658,52 @@ function boot(){
 }
 boot();
 
-/* === HF6K: PCヘッダ中央 横スクロール最小パッチ（維持） === */
+/* === HF6K: 横スクロール（wheel/drag） === */
 const rail = document.getElementById('railScroll');
-/* マウスホイールの縦回転を横スクロールへ転送（PC向け） */
 rail.addEventListener('wheel', (e) => {
   const useY = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
   const delta = useY ? e.deltaY : e.deltaX;
-  if (delta !== 0) {
-    rail.scrollLeft += delta;
-    e.preventDefault(); // ページ全体のスクロールを抑止
-  }
+  if (delta !== 0) { rail.scrollLeft += delta; e.preventDefault(); }
 }, { passive:false });
-/* ドラッグで横スクロール（クリック操作を邪魔しないよう閾値あり） */
-let railDown = false, railDrag = false, railStartX = 0, railStartLeft = 0;
-const DRAG_THRESHOLD = 5; // px
+let railDown=false, railDrag=false, railStartX=0, railStartLeft=0;
+const DRAG_THRESHOLD=5;
 rail.addEventListener('pointerdown', (e) => {
   if (e.button !== 0 && e.pointerType === 'mouse') return;
-  railDown = true; railDrag = false;
-  railStartX = e.clientX; railStartLeft = rail.scrollLeft;
+  railDown=true; railDrag=false; railStartX=e.clientX; railStartLeft=rail.scrollLeft;
   rail.setPointerCapture?.(e.pointerId);
 });
 rail.addEventListener('pointermove', (e) => {
   if (!railDown) return;
-  const dx = e.clientX - railStartX;
-  if (!railDrag && Math.abs(dx) > DRAG_THRESHOLD) {
-    railDrag = true;
-    rail.classList.add('dragging');
-  }
-  if (railDrag) {
-    rail.scrollLeft = railStartLeft - dx;
-    e.preventDefault();
-  }
-}, { passive:false });
-function railEnd(e){
-  if (railDown && railDrag) e.preventDefault();
-  railDown = false; railDrag = false;
-  rail.classList.remove('dragging');
-  try{ rail.releasePointerCapture?.(e.pointerId); }catch{}
-}
-rail.addEventListener('pointerup', railEnd, { passive:false });
-rail.addEventListener('pointercancel', railEnd, { passive:false });
-rail.addEventListener('pointerleave', railEnd, { passive:true });
+  const dx=e.clientX-railStartX;
+  if (!railDrag && Math.abs(dx)>DRAG_THRESHOLD){ railDrag=true; rail.classList.add('dragging'); }
+  if (railDrag){ rail.scrollLeft=railStartLeft-dx; e.preventDefault(); }
+},{passive:false});
+function railEnd(e){ if(railDown&&railDrag) e.preventDefault(); railDown=false; railDrag=false; rail.classList.remove('dragging'); try{rail.releasePointerCapture?.(e.pointerId);}catch{} }
+rail.addEventListener('pointerup',railEnd,{passive:false});
+rail.addEventListener('pointercancel',railEnd,{passive:false});
+rail.addEventListener('pointerleave',railEnd,{passive:true});
 
-/* === HF6L: rail のオーバーフロー検知＋ヒント === */
+/* === HF6M: オーバーフロー検知＋ヒント（wrapに付与） === */
 (function enhanceRailDiscoverability(){
   const rail = document.getElementById('railScroll');
+  const wrap = document.getElementById('railWrap');
   const hint = document.getElementById('railHint');
-  if(!rail || !hint) return;
+  if(!rail || !wrap || !hint) return;
 
   function updateOverflowState(){
     const can = rail.scrollWidth > rail.clientWidth + 1;
-    rail.classList.toggle('can-overflow', can);
+    wrap.classList.toggle('can-overflow', can);
     const sc = rail.scrollLeft;
     const max = rail.scrollWidth - rail.clientWidth - 1;
-    rail.classList.toggle('at-start', sc <= 0);
-    rail.classList.toggle('at-end', sc >= max);
+    wrap.classList.toggle('at-start', sc <= 0);
+    wrap.classList.toggle('at-end',   sc >= max);
   }
 
   function maybeShowHint(){
     let shown = false;
     try{ shown = sessionStorage.getItem('railHinted') === '1'; }catch{}
     if(shown) return;
-    if(rail.classList.contains('can-overflow')){
+    if(wrap.classList.contains('can-overflow')){
       hint.classList.add('show');
       setTimeout(()=>{
         hint.classList.remove('show');
