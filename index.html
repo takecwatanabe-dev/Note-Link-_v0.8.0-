@@ -2,17 +2,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NOTE LINK — v0.8.0 / B-REL6-T2-HOTFIX</title>
+<title>NOTE LINK — v0.8.0 / B-REL6-T3-HOTFIX</title>
 <!--
-PATCH BANNER: 2025-09-28 23:44 JST / VERSION HF6T2-HOTFIX
-FIX: 重大な二重定義(duplicate const/function) によるパースエラーを解消
-SCOPE: UI(HTML/CSS)は一切変更なし。JSロジックのみ。
-INCLUDES (前版のまま動作):
-  - ズーム中心保持 (clientWidth/Height 基準)
-  - ヘッダ横スライド（ドラッグ & ホイール）
-  - サイドバー→キャンバス競合ブロック & pointerup 補完
+PATCH BANNER: 2025-09-28 23:58 JST / VERSION HF6T3-HOTFIX
+SCOPE: UI(HTML/CSS)は不変更。JSのみ。
+FIX:
+  - 二重定義によるスクリプト停止を根治（hist/redoStack/snapshot/pushHistory/restoreSnap/straightKey の重複削除）
+  - setZoom() は clientWidth/Height 基準（ドリフト根治）
+  - ヘッダの横ドラッグ＆ホイールスクロール
+  - サイドバー→キャンバス競合ブロック＋pointerup 補完
 -->
 <style>
+/* —— 既存のUIをそのまま —— */
 :root{--ink:#e6f1ff;--ink-dim:#9bd6e9;--bg:#0b1020;--panel:#101827;--accent:#3f78ff;--ok:#20e3c2;--muted:#2a3550;--shadow:0 10px 24px rgba(0,0,0,.45);--topbar-h:44px;--toolbar-w:56px}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;-webkit-user-select:none;user-select:none;overflow-x:hidden}
@@ -71,7 +72,7 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
 </head>
 <body>
 <header class="topbar" id="topbar">
-  <div class="brand"><strong id="verText">NOTE LINK — V0.8.0 / B-REL6-T2-HOTFIX</strong></div>
+  <div class="brand"><strong id="verText">NOTE LINK — V0.8.0 / B-REL6-T3-HOTFIX</strong></div>
   <div class="rail-wrap" id="railWrap">
     <div class="rail-scroll" id="railScroll">
       <button class="btn" id="btnImgAppend">画像追加</button>
@@ -91,7 +92,7 @@ header.topbar{position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--topb
         <span id="pageIndicator">1/1</span>
         <button class="btn" id="btnNext">次 ▶︎</button>
       </span>
-      <span class="build" id="buildText">BUILD: HF6T2-HOTFIX</span>
+      <span class="build" id="buildText">BUILD: HF6T3-HOTFIX</span>
     </div>
     <div id="railHint" class="rail-hint" aria-hidden="true">⇠ スライド ⇢</div>
     <div class="rail-fade left" aria-hidden="true"></div>
@@ -192,8 +193,8 @@ const textLayer=$('#textLayer');
 function safe(fn){try{fn();}catch(e){console.warn('[SAFE]',e);}}
 
 /* header text */
-$('#verText').textContent='NOTE LINK — V0.8.0 / B-REL6-T2-HOTFIX';
-$('#buildText').textContent='BUILD: HF6T2-HOTFIX';
+$('#verText').textContent='NOTE LINK — V0.8.0 / B-REL6-T3-HOTFIX';
+$('#buildText').textContent='BUILD: HF6T3-HOTFIX';
 
 /* ===== layout & zoom ===== */
 let zoom=1, panX=0, panY=0, W=0, H=0;
@@ -207,6 +208,21 @@ function fitCanvases(){
 }
 addEventListener('resize',()=>{safe(applyBars);safe(fitCanvases);});
 if(window.visualViewport){visualViewport.addEventListener('resize',()=>{safe(applyBars);safe(fitCanvases);});}
+
+/* ★ズーム中心保持（clientWidth/Height 基準） */
+function setZoom(z){
+  const z0=zoom, z1=Math.max(0.6,Math.min(3,z));
+  const Cx=viewport.clientWidth/2, Cy=viewport.clientHeight/2;
+  const Ux=(Cx - panX)/z0, Uy=(Cy - panY)/z0;
+  zoom=z1;
+  panX = Cx - Ux * z1;
+  panY = Cy - Uy * z1;
+  updateViewportTransform();
+  $('#btnZoomReset').textContent=Math.round(zoom*100)+'%';
+}
+$('#btnZoomIn').onclick=()=>setZoom(zoom+0.1);
+$('#btnZoomOut').onclick=()=>setZoom(zoom-0.1);
+$('#btnZoomReset').onclick=()=>setZoom(1);
 
 /* ===== paper & grid ===== */
 function mm2px(mm){return mm*96/25.4*DPR}
@@ -251,7 +267,8 @@ $('#btnSetBg_m').onclick=async()=>{const file=await pickImage();if(!file)return;
 /* ===== tools & panel ===== */
 let tool='pen';
 const perTool={pen:{color:'#000000',size:4,alpha:1,cap:'round',straight:false},marker:{color:'#ffff00',size:16,alpha:.5,cap:'butt',straight:false},eraser:{size:24},hand:{},keyboard:{}};
-let color=perTool.pen.color, size=perTool.pen.size, alpha=1, cap='round', straightToggle=false, straightKey=false; let palmReject=true, pressureOn=true, tiltOn=true;
+let color=perTool.pen.color, size=perTool.pen.size, alpha=1, cap='round', straightToggle=false, straightKey=false;
+let palmReject=true, pressureOn=true, tiltOn=true;
 function saveToolState(k){const p=perTool[k]||(perTool[k]={});p.color=color;p.size=size;p.alpha=alpha;p.cap=cap;p.straight=!!straightToggle;}
 function loadToolState(k){const p=perTool[k]||{};color=p.color??color;size=p.size??size;alpha=p.alpha??alpha;cap=p.cap??cap;straightToggle=!!p.straight;}
 function setActiveTool(t){saveToolState(tool);tool=t;loadToolState(t);$$('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));$('#panelTool').textContent=t;$('#rowAlpha').style.display=(t==='marker')?'':'none';$('#rowLineCap').style.display=(t==='marker'||t==='pen')?'':'none';$('#rowStraight').style.display=(t==='pen'||t==='marker')?'':'none';$('#rowTextOps').style.display=(t==='keyboard')?'':'none';$('#rowSize').style.display=(t==='pen'||t==='marker'||t==='eraser')?'':'none';$('#rowPenExt').style.display=(t==='pen'||t==='marker')?'':'none';syncUI();cv.style.cursor=(t==='hand')?'grab':'crosshair';}
@@ -295,7 +312,7 @@ Object.values(ui).forEach(el=>el.addEventListener('input',onPanelChange));
 /* ===== draw ===== */
 function pointerToCanvas(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*(cv.width/r.width),y:(e.clientY-r.top)*(cv.height/r.height)}}
 function inPaperXY(x,y){return(x>=paperRect.x && y>=paperRect.y && x<=paperRect.x+paperRect.w && y<=paperRect.y+paperRect.h)}
-let drawing=false,panning=false,start={x:0,y:0},last={x:0,y:0},activeTouches=0,currentStroke=null, straightKey=false;
+let drawing=false,panning=false,start={x:0,y:0},last={x:0,y:0},activeTouches=0,currentStroke=null;
 function setCtx(){ctx.lineJoin='round';ctx.lineCap=(tool==='marker'||tool==='pen')?cap:'round';if(tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.strokeStyle='#000';ctx.globalAlpha=1;}else if(tool==='marker'){ctx.globalCompositeOperation='source-over';ctx.strokeStyle=color;ctx.globalAlpha=alpha;}else{ctx.globalCompositeOperation='source-over';ctx.strokeStyle=color;ctx.globalAlpha=1;}ctx.lineWidth=Math.max(1,Math.round(size*DPR));}
 function showGuide(sx,sy,ex,ey){gGuide.clearRect(0,0,cvGuide.width,cvGuide.height);gGuide.save();gGuide.setLineDash([6*DPR,6*DPR]);gGuide.lineWidth=Math.max(1,Math.round(size*DPR));gGuide.lineCap=cap;gGuide.strokeStyle='#7ec8ff';gGuide.beginPath();gGuide.moveTo(sx,sy);gGuide.lineTo(ex,ey);gGuide.stroke();gGuide.restore();}
 function clearGuide(){gGuide.clearRect(0,0,cvGuide.width,cvGuide.height);}
@@ -319,7 +336,7 @@ $('#btnPrint').onclick=()=>window.print();
 $('#btnShare').onclick=()=>{composite().toBlob(async b=>{const f=new File([b],'note.png',{type:'image/png'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Note Link'})}catch(e){}}else{const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='note-link.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),800)}})};
 
 let fileHandle=null;
-function exportJSON(){return JSON.stringify({v:'HF6T2',pages:Pages.list.map(pg=>({strokes:pg.strokes||[],textsHTML:pg.textsHTML||'',bg:pg.bg&&pg.bg.dataURL?{dataURL:pg.bg.dataURL}:null})),idx:Pages.idx,grid:{on:gridOn,stepMM:gridStepMM,color:gridColor}});}
+function exportJSON(){return JSON.stringify({v:'HF6T3',pages:Pages.list.map(pg=>({strokes:pg.strokes||[],textsHTML:pg.textsHTML||'',bg:pg.bg&&pg.bg.dataURL?{dataURL:pg.bg.dataURL}:null})),idx:Pages.idx,grid:{on:gridOn,stepMM:gridStepMM,color:gridColor}});}
 async function doSave(){const blob=new Blob([exportJSON()],{type:'application/json'});try{if('showSaveFilePicker'in window){if(!fileHandle){fileHandle=await window.showSaveFilePicker({suggestedName:'note-link.json',types:[{description:'Note Link JSON',accept:{'application/json':['.json']}}]});}const w=await fileHandle.createWritable();await w.write(blob);await w.close();}else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='note-link.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),800);}}catch(e){}}
 async function doLoad(){try{let f=null;if('showOpenFilePicker'in window){const[h]=await window.showOpenFilePicker({types:[{description:'Note Link JSON',accept:{'application/json':['.json']}}]});f=await h.getFile();fileHandle=h;}else{const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';f=await new Promise(res=>{inp.onchange=()=>res(inp.files[0]);inp.click();});}const txt=await f.text();const data=JSON.parse(txt);Pages.list=(data.pages||[]).map(pg=>{const entry={strokes:pg.strokes||[],textsHTML:pg.textsHTML||'',bg:null};if(pg.bg&&pg.bg.dataURL){const img=new Image();img.src=pg.bg.dataURL;entry.bg={dataURL:pg.bg.dataURL,img};}return entry;});if(!Pages.list.length)Pages.list=[{strokes:[],textsHTML:'',bg:null}];Pages.idx=Math.max(0,Math.min(Pages.list.length-1,data.idx||0));gridOn=!!data.grid?.on;gridStepMM=data.grid?.stepMM||10;gridColor=data.grid?.color||'#b7bfd6';textLayer.innerHTML=Pages.cur().textsHTML||'';updatePageIndicator();drawPaper();redrawAll();pushHistory();}catch(e){}}
 $('#btnSave').onclick=doSave; $('#btnLoad').onclick=doLoad;
@@ -330,28 +347,13 @@ function fitImageToPaper(img){const off=document.createElement('canvas');off.wid
 async function addImage(mode){const file=await pickImage();if(!file)return;const tmp=new Image();tmp.src=URL.createObjectURL(file);await new Promise(r=>{tmp.onload=r;tmp.onerror=r;});const bg=fitImageToPaper(tmp);URL.revokeObjectURL(tmp.src);if(mode==='append'){Pages.list.push({strokes:[],textsHTML:'',bg});setPage(Pages.list.length-1);}else{const pos=Pages.idx+1;Pages.list.splice(pos,0,{strokes:[],textsHTML:'',bg});setPage(pos);}pushHistory();}
 $('#btnImgAppend').onclick=()=>addImage('append'); $('#btnImgInsert').onclick=()=>addImage('insert');
 
-/* ===== undo/redo ===== */
+/* ===== undo/redo（単一定義） ===== */
 const hist=[], redoStack=[];
 function snapshot(){return{pages:JSON.parse(JSON.stringify(Pages.list.map(p=>({strokes:p.strokes,textsHTML:p.textsHTML,bg:p.bg?{dataURL:p.bg.dataURL}:null})))),idx:Pages.idx,grid:{on:gridOn,step:gridStepMM,color:gridColor}};}
 function pushHistory(){hist.push(snapshot());if(hist.length>40)hist.shift();redoStack.length=0;updatePageIndicator();}
 function restoreSnap(s){Pages.list=s.pages.map(pg=>{const entry={strokes:pg.strokes||[],textsHTML:pg.textsHTML||'',bg:null};if(pg.bg&&pg.bg.dataURL){const img=new Image();img.src=pg.bg.dataURL;entry.bg={dataURL:pg.bg.dataURL,img};}return entry;});Pages.idx=Math.max(0,Math.min(Pages.list.length-1,s.idx||0));gridOn=s.grid.on;gridStepMM=s.grid.step;gridColor=s.grid.color;textLayer.innerHTML=Pages.cur().textsHTML||'';updatePageIndicator();drawPaper();redrawAll();}
 $('#btnUndo').onclick=()=>{if(!hist.length)return;const cur=snapshot();const prev=hist.pop();redoStack.push(cur);restoreSnap(prev);};
 $('#btnRedo').onclick=()=>{const nxt=redoStack.pop();if(!nxt)return;hist.push(snapshot());restoreSnap(nxt);};
-
-/* ===== zoom: 中心保持 ===== */
-function setZoom(z){
-  const z0=zoom, z1=Math.max(0.6,Math.min(3,z));
-  const Cx=viewport.clientWidth/2, Cy=viewport.clientHeight/2;
-  const Ux=(Cx - panX)/z0, Uy=(Cy - panY)/z0;
-  zoom=z1;
-  panX = Cx - Ux * z1;
-  panY = Cy - Uy * z1;
-  updateViewportTransform();
-  $('#btnZoomReset').textContent=Math.round(zoom*100)+'%';
-}
-$('#btnZoomIn').onclick=()=>setZoom(zoom+0.1);
-$('#btnZoomOut').onclick=()=>setZoom(zoom-0.1);
-$('#btnZoomReset').onclick=()=>setZoom(1);
 
 /* ===== ヘッダ横ドラッグ & ホイール ===== */
 (function railDrag(){
@@ -369,7 +371,7 @@ $('#btnZoomReset').onclick=()=>setZoom(1);
     rail.scrollLeft=startLeft-dx;
     e.preventDefault();
   },{passive:false});
-  function endDrag(e){
+  function endDrag(){
     if(!isDrag) return; isDrag=false;
     try{rail.releasePointerCapture(pid);}catch{}
     if(moved>8){
