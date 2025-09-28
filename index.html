@@ -2,14 +2,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NOTE LINK — v0.8.0 / B-REL6-Q</title>
+<title>NOTE LINK — v0.8.0 / B-REL6-R</title>
 <!--
-PATCH HEADER: 2025-09-28 10:02 JST / VERSION HF6Q
-CHANGES (from HF6P):
-  - Handle jump fix: drag threshold(8px) + justDragged flag to suppress post-drag click;
-    persist left(px) while dragging; single re-apply of saved X on toggle (no multi-rAF).
-  - No paper shift on toolbar collapse/expand: panX += (preToolbarW - postToolbarW).
-  - Settings panel visibility = legacy (HF6j): marker shows opacity, pen hides it; other rows unchanged.
+PATCH BANNER: 2025-09-28 22:00 JST / VERSION HF6R
+SCOPE:
+  1) Handle reverse-jump fixed: session var handleXCur + post-drag click suppress (justDragged).
+  2) Preserve view on toolbar toggle: panX += (preToolbarW - postToolbarW) (keep).
+  3) Header rail "grip" overlay to make horizontal slide easier; fade hint tuned.
+  * No functional changes to drawing/zoom/IO. Settings UI layout refresh is deferred to next patch (HF6S).
 -->
 <style>
 :root{
@@ -48,12 +48,12 @@ header.topbar{
 .topbar .btn:active{transform:translateY(1px)}
 .build{opacity:.8}
 
-/* フェード＆ヒント */
+/* フェード＆ヒント（控えめに可視） */
 .rail-fade{position:absolute;top:0;bottom:0;width:28px;pointer-events:none;opacity:0;transition:opacity .2s}
 .rail-fade.left{left:0;background:linear-gradient(to right,rgba(0,0,0,.35),rgba(0,0,0,0))}
 .rail-fade.right{right:0;background:linear-gradient(to left,rgba(0,0,0,.35),rgba(0,0,0,0))}
-.rail-wrap.can-overflow:not(.at-start) .rail-fade.left{opacity:.9}
-.rail-wrap.can-overflow:not(.at-end) .rail-fade.right{opacity:.9}
+.rail-wrap.can-overflow:not(.at-start) .rail-fade.left{opacity:.6}
+.rail-wrap.can-overflow:not(.at-end) .rail-fade.right{opacity:.6}
 .rail-hint{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   background:#0009;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;line-height:1.9;letter-spacing:.02em;
@@ -61,6 +61,11 @@ header.topbar{
 }
 .rail-hint.show{opacity:1;animation:railPulse 1.6s ease-in-out 2}
 @keyframes railPulse{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.06)}}
+/* 掴み帯（ボタン上端の透明ストリップ） */
+#railGrip{
+  position:absolute;left:0;right:0;top:0;height:18px;z-index:5;
+  pointer-events:auto;background:transparent;
+}
 
 /* ===== Layout ===== */
 #wrap{position:relative;height:100%;padding-top:var(--topbar-h)}
@@ -128,7 +133,7 @@ body.tb-collapsed .tb-handle{ display:grid }
 </head>
 <body>
 <header class="topbar" id="topbar">
-  <div class="brand"><strong id="verText">NOTE LINK — V0.8.0 / B-REL6-Q</strong></div>
+  <div class="brand"><strong id="verText">NOTE LINK — V0.8.0 / B-REL6-R</strong></div>
 
   <div class="rail-wrap" id="railWrap">
     <div class="rail-scroll" id="railScroll">
@@ -153,8 +158,10 @@ body.tb-collapsed .tb-handle{ display:grid }
         <button class="btn" id="btnNext">次 ▶︎</button>
       </span>
 
-      <span class="build" id="buildText">BUILD: HF6Q</span>
+      <span class="build" id="buildText">BUILD: HF6R</span>
     </div>
+    <!-- 掴み帯 -->
+    <div id="railGrip" title="横にスライドでスクロールできます"></div>
     <div id="railHint" class="rail-hint" aria-hidden="true">⇠ スライド ⇢</div>
     <div class="rail-fade left"  aria-hidden="true"></div>
     <div class="rail-fade right" aria-hidden="true"></div>
@@ -259,8 +266,8 @@ const cvPaper=$('#paper'), gPaper=cvPaper.getContext('2d');
 const cvGuide=$('#guide'), gGuide=cvGuide.getContext('2d');
 const cv=$('#paint'), ctx=cv.getContext('2d',{alpha:true});
 const textLayer=$('#textLayer');
-$('#verText').textContent='NOTE LINK — V0.8.0 / B-REL6-Q';
-$('#buildText').textContent='BUILD: HF6Q';
+$('#verText').textContent='NOTE LINK — V0.8.0 / B-REL6-R';
+$('#buildText').textContent='BUILD: HF6R';
 
 /* ===== layout & zoom ===== */
 let zoom=1, panX=0, panY=0, W=0, H=0;
@@ -330,7 +337,7 @@ function setActiveTool(t){
   saveToolState(tool); tool=t; loadToolState(t);
   $$('.tool').forEach(b=>b.classList.toggle('active', b.dataset.tool===t));
   $('#panelTool').textContent=t;
-  /* ← HF6jと同じ表示条件へ */
+  /* 表示条件はHF6j準拠 */
   $('#rowAlpha').style.display=(t==='marker')?'':'none';
   $('#rowLineCap').style.display=(t==='marker'||t==='pen')?'':'none';
   $('#rowStraight').style.display=(t==='pen'||t==='marker')?'':'none';
@@ -339,7 +346,6 @@ function setActiveTool(t){
   $('#rowPenExt').style.display=(t==='pen'||t==='marker')?'':'none';
   syncUI(); cv.style.cursor=(t==='hand')?'grab':'crosshair';
 }
-/* ツール群クリック（復帰済み） */
 $$('.tool').forEach(btn=>{
   if(btn.id==='btnSidebarToggle') return;
   btn.addEventListener('click', ()=>{
@@ -355,7 +361,7 @@ $$('.tool').forEach(btn=>{
 });
 $('#btnSidebarToggle').onclick=()=>toggleToolbar('auto');
 
-/* パネル移動（既存） */
+/* パネル移動 */
 (()=>{const handle=$('#panelHandle');let dragging=false,sx=0,sy=0,ox=0,oy=0,id=0;
 function down(e){ if(e.target.closest('#panelClose')) return; dragging=true; id=e.pointerId||1; try{panel.setPointerCapture(id)}catch{}; sx=e.clientX; sy=e.clientY; const r=panel.getBoundingClientRect(); ox=r.left; oy=r.top; e.preventDefault();}
 function move(e){ if(!dragging) return; const nx=ox+(e.clientX-sx),ny=oy+(e.clientY-sy); panel.style.left=Math.max(56,nx)+'px'; const top=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--topbar-h'))+6; panel.style.top=Math.max(top,ny)+'px';}
@@ -374,7 +380,7 @@ Object.values(ui).forEach(el=>el.addEventListener('input',onPanelChange));
 
 /* ===== pointer mapping & draw ===== */
 function pointerToCanvas(e){ const r=cv.getBoundingClientRect(); return { x:(e.clientX - r.left)*(cv.width/r.width), y:(e.clientY - r.top)*(cv.height/r.height) }; }
-function inPaperXY(x,y){ return x>=paperRect.x && y>=paperRect.y && x<=paperRect.x+paperRect.w && y<=paperRect.x+paperRect.w+paperRect.h; } // minor: original bug had y<=...h
+function inPaperXY(x,y){ return (x>=paperRect.x && y>=paperRect.y && x<=paperRect.x+paperRect.w && y<=paperRect.y+paperRect.h); }
 let drawing=false, panning=false, start={x:0,y:0}, last={x:0,y:0}, activeTouches=0; let currentStroke=null;
 function setCtx(){ ctx.lineJoin='round'; ctx.lineCap=(tool==='marker'||tool==='pen')?cap:'round';
   if(tool==='eraser'){ ctx.globalCompositeOperation='destination-out'; ctx.strokeStyle='#000'; ctx.globalAlpha=1; }
@@ -455,7 +461,7 @@ $('#btnPrint').onclick=()=>window.print();
 $('#btnShare').onclick=()=>{composite().toBlob(async b=>{const f=new File([b],'note.png',{type:'image/png'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Note Link'})}catch(e){}}else{const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='note-link.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),800)}})};
 
 let fileHandle=null;
-function exportJSON(){ return JSON.stringify({ v:'HF6q',
+function exportJSON(){ return JSON.stringify({ v:'HF6r',
   pages: Pages.list.map(pg=>({strokes:pg.strokes||[],textsHTML:pg.textsHTML||'', bg:pg.bg && pg.bg.dataURL ? {dataURL:pg.bg.dataURL}:null})),
   idx: Pages.idx, grid:{on:gridOn,stepMM:gridStepMM,color:gridColor} }); }
 async function doSave(){ const blob=new Blob([exportJSON()],{type:'application/json'});
@@ -497,7 +503,7 @@ function fitImageToPaper(img){
   const w=img.naturalWidth*sc, h=img.naturalHeight*sc, x=(off.width-w)/2, y=(off.height-h)/2;
   o.fillStyle='#fff'; o.fillRect(0,0,off.width,off.height); o.drawImage(img,x,y,w,h);
   const dataURL=off.toDataURL('image/jpeg',0.9); const fitted=new Image(); fitted.src=dataURL;
-  return {dataURL, img:fitted};
+  return {dataURL, img=fitted};
 }
 async function addImage(mode){
   const file=await pickImage(); if(!file) return;
@@ -532,12 +538,12 @@ $('#btnZoomIn').onclick = ()=>setZoom(zoom+0.1);
 $('#btnZoomOut').onclick= ()=>setZoom(zoom-0.1);
 $('#btnZoomReset').onclick=()=>setZoom(1);
 
-/* ===== Header rail: wheel/drag scroll（クリック殺し対策） ===== */
+/* ===== Header rail: wheel/drag scroll + grip ===== */
 const rail = document.getElementById('railScroll');
+const grip = document.getElementById('railGrip');
 rail.addEventListener('wheel',(e)=>{ const useY=Math.abs(e.deltaY)>=Math.abs(e.deltaX); const d=useY?e.deltaY:e.deltaX;
   if(d!==0){ rail.scrollLeft+=d; e.preventDefault(); } },{passive:false});
-let railDown=false, railDrag=false, railStartX=0, railStartLeft=0;
-let railPointerId=null;
+let railDown=false, railDrag=false, railStartX=0, railStartLeft=0, railPointerId=null;
 const DRAG_THRESHOLD=8;
 rail.addEventListener('pointerdown',(e)=>{ if(e.button!==0 && e.pointerType==='mouse') return;
   railDown=true; railDrag=false; railStartX=e.clientX; railStartLeft=rail.scrollLeft; railPointerId=e.pointerId; });
@@ -545,12 +551,19 @@ rail.addEventListener('pointermove',(e)=>{ if(!railDown) return;
   const dx=e.clientX-railStartX;
   if(!railDrag && Math.abs(dx)>DRAG_THRESHOLD){ railDrag=true; rail.classList.add('dragging'); rail.setPointerCapture?.(railPointerId); }
   if(railDrag){ rail.scrollLeft=railStartLeft-dx; e.preventDefault(); } },{passive:false});
-function railEnd(e){ if(!railDown) return;
-  if(railDrag){ e.preventDefault(); }
+function railEnd(e){ if(!railDown) return; if(railDrag){ e.preventDefault(); }
   railDown=false; railDrag=false; rail.classList.remove('dragging'); try{ rail.releasePointerCapture?.(railPointerId);}catch{} railPointerId=null; }
 rail.addEventListener('pointerup',railEnd,{passive:false});
 rail.addEventListener('pointercancel',railEnd,{passive:false});
 rail.addEventListener('pointerleave',railEnd,{passive:true});
+
+/* 掴み帯：常に横スクロール（ボタン誤操作なし） */
+let gripDown=false, gripStartX=0, gripStartLeft=0, gripPid=null;
+grip.addEventListener('pointerdown',(e)=>{ gripDown=true; gripStartX=e.clientX; gripStartLeft=rail.scrollLeft; gripPid=e.pointerId; grip.setPointerCapture?.(gripPid); e.preventDefault(); },{passive:false});
+grip.addEventListener('pointermove',(e)=>{ if(!gripDown) return; const dx=e.clientX-gripStartX; rail.scrollLeft=gripStartLeft-dx; e.preventDefault(); },{passive:false});
+function gripEnd(e){ if(!gripDown) return; gripDown=false; try{ grip.releasePointerCapture?.(gripPid);}catch{} }
+grip.addEventListener('pointerup',gripEnd,{passive:false});
+grip.addEventListener('pointercancel',gripEnd,{passive:false});
 
 /* ===== Header discoverability ===== */
 (function headerDiscoverability(){
@@ -567,13 +580,16 @@ rail.addEventListener('pointerleave',railEnd,{passive:true});
   update(); maybe();
 })();
 
-/* ===== Collapsible toolbar + movable handle (HF6Q) ===== */
+/* ===== Collapsible toolbar + movable handle (HF6R) ===== */
 const bodyEl=document.body, tbHandle=document.getElementById('tbHandle');
 function updateHandleIcon(){ const open=!isCollapsed(); tbHandle.innerHTML=open
   ? '<svg viewBox="0 0 24 24"><path d="M5 15 L12 8 L19 15 Z"/></svg>'  /* ▲ */
   : '<svg viewBox="0 0 24 24"><path d="M5 9 L12 16 L19 9 Z"/></svg>';  /* ▼ */ }
 function isCollapsed(){ return bodyEl.classList.contains('tb-collapsed'); }
-function applyHandleX(px){ const x=clamp(px,4, Math.max(4,innerWidth-40)); tbHandle.style.left=x+'px'; }
+function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+/* セッション位置（保存と乖離させない） */
+let handleXCur=null;
+function applyHandleX(px){ const x=clamp(px,4, Math.max(4,innerWidth-40)); tbHandle.style.left=x+'px'; handleXCur=x; }
 function savedHandleX(){ try{ const v=localStorage.getItem('tbHandleX'); return (v==null?8:parseInt(v,10)||8); }catch{ return 8; } }
 function saveHandleX(px){ try{ localStorage.setItem('tbHandleX', String(px)); }catch{} }
 function getToolbarW(){
@@ -582,56 +598,57 @@ function getToolbarW(){
   const v=b||r||'0'; return parseInt(v,10)||0;
 }
 function toggleToolbar(mode='auto'){
-  const preW = getToolbarW();                 /* 開閉前のバー幅(px) */
+  const preW = getToolbarW();
   const willCollapse=(mode==='auto')?!isCollapsed():(mode==='collapse');
   if(willCollapse){ bodyEl.classList.add('tb-collapsed'); tbHandle.setAttribute('aria-expanded','false'); }
   else            { bodyEl.classList.remove('tb-collapsed'); tbHandle.setAttribute('aria-expanded','true'); }
-  const postW = getToolbarW();                /* 開閉後のバー幅(px) */
-  const delta = preW - postW;                 /* 左余白の減少分だけ panX を加算 */
-  panX += delta;                              /* 画面上の紙位置を保持 */
+  const postW = getToolbarW();
+  const delta = preW - postW;
+  panX += delta;                      /* 視点位置維持 */
   updateViewportTransform();
   updateHandleIcon();
-  /* ハンドルは保存値を1回だけ再適用（多重rAFは不要） */
-  applyHandleX(savedHandleX());
+  /* 直近のセッション値を 1回だけ適用（保存値は参照しない） */
+  if(handleXCur==null) handleXCur = savedHandleX();
+  applyHandleX(handleXCur);
   applyBars(); fitCanvases();
 }
 
 /* ハンドル：ドラッグ/TAP判定＋ドラッグ直後のclick抑止 */
+let draggingHandle=false, handleMoved=false, hx=0, startX=0, justDragged=false, saveTick=0;
 tbHandle.addEventListener('click', e=>{
   if(justDragged){ justDragged=false; return; }  /* ドラッグ直後の誤クリック無視 */
   toggleToolbar('auto');
 });
-function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
-let draggingHandle=false, handleMoved=false, hx=0, startX=0, saveTick=0, justDragged=false;
 tbHandle.addEventListener('pointerdown', e=>{
-  draggingHandle=true; handleMoved=false; startX=e.clientX; hx=parseInt(tbHandle.style.left||savedHandleX(),10)||8;
-  tbHandle.setPointerCapture?.(e.pointerId); e.preventDefault();
+  draggingHandle=true; handleMoved=false; startX=e.clientX;
+  hx=(handleXCur??savedHandleX()); tbHandle.setPointerCapture?.(e.pointerId); e.preventDefault();
 },{passive:false});
 tbHandle.addEventListener('pointermove', e=>{
   if(!draggingHandle) return;
   const dx=e.clientX-startX;
-  if(Math.abs(dx)>0){ handleMoved=true; }
   const nx=clamp(hx+dx,4, Math.max(4,innerWidth-40));
-  tbHandle.style.left=nx+'px';
+  tbHandle.style.left=nx+'px'; handleXCur=nx;
   const now=performance.now(); if(now-saveTick>30){ saveHandleX(nx); saveTick=now; }
+  if(Math.abs(dx)>0) handleMoved=true;
   e.preventDefault();
 },{passive:false});
 function endHandle(e){
   if(!draggingHandle) return;
   draggingHandle=false;
-  const nx=parseInt(tbHandle.style.left||savedHandleX(),10)||8;
-  saveHandleX(nx);
+  if(handleXCur==null) handleXCur=savedHandleX();
+  saveHandleX(handleXCur);
   if(handleMoved){ justDragged=true; setTimeout(()=>{ justDragged=false; },0); e.preventDefault(); }
   try{tbHandle.releasePointerCapture?.(e.pointerId);}catch{}
 }
 tbHandle.addEventListener('pointerup', endHandle, {passive:false});
 tbHandle.addEventListener('pointercancel', endHandle, {passive:false});
-function clampHandle(){ const x=parseInt(tbHandle.style.left||savedHandleX(),10)||8; applyHandleX(x); }
+function clampHandle(){ handleXCur=clamp((handleXCur??savedHandleX()),4, Math.max(4,innerWidth-40)); applyHandleX(handleXCur); }
 
 /* ===== boot ===== */
 function boot(){
   updateViewportTransform(); fitCanvases(); setActiveTool('pen');
-  updateHandleIcon(); applyHandleX(savedHandleX());
+  handleXCur = savedHandleX(); applyHandleX(handleXCur);
+  updateHandleIcon();
   panel.classList.remove('show'); $$('.tool[data-tool="settings"]').forEach(b=>b.classList.remove('active'));
   pushHistory();
 }
